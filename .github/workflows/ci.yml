@@ -8,6 +8,8 @@ on:
 jobs:
   build:
     name: build
+    # Selected release pushes are verified by Release CI after the draft is ready.
+    if: ${{ github.event_name != 'push' || !startsWith(github.event.head_commit.message, 'Release ') }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -28,24 +30,3 @@ jobs:
       - name: Full custom lint
         run: lake lint
 
-      - name: Package and verify the release build cache
-        # The promotion tool commits public code as "Release X.Y.Z code".
-        # Ordinary pull requests and maintenance pushes do not package caches.
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && startsWith(github.event.head_commit.message, 'Release ')
-        env:
-          CACHE_REPOSITORY: ${{ github.repository }}
-        run: >-
-          python3 .github/build-cache.py pack --root .
-          --output-dir "$RUNNER_TEMP/release-build-cache"
-          --repository "$CACHE_REPOSITORY" --run-id "$GITHUB_RUN_ID"
-
-      - name: Preserve the verified cache for this exact public commit
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && startsWith(github.event.head_commit.message, 'Release ')
-        uses: actions/upload-artifact@v4
-        with:
-          name: lean-build-${{ github.sha }}-linux-x86_64
-          path: ${{ runner.temp }}/release-build-cache/
-          if-no-files-found: error
-          retention-days: 7
-          compression-level: 0
-          overwrite: true

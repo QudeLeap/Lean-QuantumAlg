@@ -1,0 +1,81 @@
+name: Release CI
+
+on:
+  repository_dispatch:
+    types: [release-ready]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Existing draft Release version (X.Y.Z)"
+        required: true
+        type: string
+      source_sha:
+        description: "Full commit SHA of the annotated version tag"
+        required: true
+        type: string
+
+permissions:
+  contents: write
+  actions: read
+
+concurrency:
+  group: release-cache-${{ github.event.client_payload.version || inputs.version }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    env:
+      GH_TOKEN: ${{ github.token }}
+      RELEASE_VERSION: ${{ github.event.client_payload.version || inputs.version }}
+      RELEASE_SOURCE_SHA: ${{ github.event.client_payload.source_sha || inputs.source_sha }}
+    steps:
+      - name: Require the selected main revision
+        env:
+          CONTROL_REF: ${{ github.ref }}
+          CONTROL_SHA: ${{ github.sha }}
+        run: |
+          test "$CONTROL_REF" = refs/heads/main
+          test "$RELEASE_SOURCE_SHA" = "$CONTROL_SHA"
+      - name: Checkout the selected release source
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - name: Verify the annotated tag and draft
+        id: release
+        run: >-
+          python3 .github/public-release.py resolve-build
+          --version "$RELEASE_VERSION" --sha "$RELEASE_SOURCE_SHA"
+      - name: Set up Lean and Mathlib cache
+        if: steps.release.outputs.ready == 'true'
+        uses: leanprover/lean-action@v1
+        with:
+          auto-config: false
+          use-mathlib-cache: true
+          build: false
+          test: false
+          lint: false
+      - name: Build all library modules
+        if: steps.release.outputs.ready == 'true'
+        run: python3 .github/build-cache.py build --root .
+      - name: Run full lint
+        if: steps.release.outputs.ready == 'true'
+        run: lake lint
+      - name: Pack and restore cache
+        if: steps.release.outputs.ready == 'true'
+        env:
+          CACHE_REPOSITORY: ${{ github.repository }}
+        run: >-
+          python3 .github/build-cache.py pack --root .
+          --output-dir "$RUNNER_TEMP/release-build-cache"
+          --repository "$CACHE_REPOSITORY" --run-id "$GITHUB_RUN_ID"
+      - name: Upload cache archive
+        if: steps.release.outputs.ready == 'true'
+        run: >-
+          python3 .github/public-release.py upload-cache
+          --version "$RELEASE_VERSION" --sha "$RELEASE_SOURCE_SHA"
+          --run-id "$GITHUB_RUN_ID" --source-root .
+          --directory "$RUNNER_TEMP/release-build-cache"

@@ -1,0 +1,83 @@
+name: Publish Release
+
+on:
+  workflow_run:
+    workflows: [Release CI]
+    types: [completed]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Release version to finish (X.Y.Z)"
+        required: true
+        type: string
+      run_id:
+        description: "Successful Release CI run for the exact tagged source"
+        required: true
+        type: string
+
+permissions:
+  contents: write
+  actions: read
+  pages: read
+
+concurrency:
+  group: public-release-publication
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.head_branch == 'main' &&
+       (github.event.workflow_run.event == 'repository_dispatch' ||
+        github.event.workflow_run.event == 'workflow_dispatch'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      GH_TOKEN: ${{ github.token }}
+      RELEASE_VERSION: ${{ inputs.version }}
+      RELEASE_CI_RUN: ${{ github.event.workflow_run.id || inputs.run_id }}
+    steps:
+      - name: Require main publication tools
+        env:
+          CONTROL_REF: ${{ github.ref }}
+        run: test "$CONTROL_REF" = refs/heads/main
+      - name: Checkout the publication tools
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - name: Validate successful CI, draft and website handoff
+        id: release
+        run: >-
+          python3 .github/public-release.py prepare-finalize
+          --run-id "$RELEASE_CI_RUN" --version "$RELEASE_VERSION"
+          --output "$RUNNER_TEMP/prepared-release"
+      - name: Create a fresh Pages publication token
+        if: steps.release.outputs.ready == 'true'
+        id: pages-token
+        uses: actions/create-github-app-token@v3
+        with:
+          client-id: ${{ vars.LEAN_AUTOMATION_APP_CLIENT_ID }}
+          private-key: ${{ secrets.LEAN_AUTOMATION_APP_PRIVATE_KEY }}
+          owner: QudeLeap
+          repositories: Lean-QuantumAlg
+          permission-contents: write
+          permission-actions: read
+      - name: Synchronize the verified website
+        if: steps.release.outputs.ready == 'true'
+        id: pages
+        env:
+          GH_TOKEN: ${{ steps.pages-token.outputs.token }}
+        run: >-
+          python3 .github/public-release.py sync-site
+          --prepared "$RUNNER_TEMP/prepared-release"
+      - name: Verify deployment and publish the release
+        if: steps.release.outputs.ready == 'true'
+        timeout-minutes: 40
+        env:
+          PAGES_SHA: ${{ steps.pages.outputs.pages_sha }}
+        run: >-
+          python3 .github/public-release.py finish
+          --prepared "$RUNNER_TEMP/prepared-release" --pages-sha "$PAGES_SHA"
