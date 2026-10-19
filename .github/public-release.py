@@ -2,8 +2,9 @@
 """Build and finish a source-bound release within its own GitHub repository.
 
 The handoff is an annotated tag, a draft Release and one verified site archive.
-Release CI publishes its cache directly; its successful completion authorizes
-Pages deployment and publication. Network/process boundaries are injectable.
+Release CI publishes its cache directly. Publication restores that exact cache
+and requires a separate full-library lint receipt before Pages or Release writes.
+Network/process boundaries are injectable.
 """
 from __future__ import annotations
 
@@ -30,7 +31,7 @@ SHA = re.compile(r"[0-9a-f]{40}\Z")
 HASH = re.compile(r"[0-9a-f]{64}\Z")
 RUN_ID = re.compile(r"[1-9][0-9]*\Z")
 WORKFLOW = ".github/workflows/release-ci.yml"
-BUILD_STEPS = {"Build all library modules", "Run full lint", "Pack and restore cache", "Upload cache archive"}
+BUILD_STEPS = {"Build all library modules", "Pack and restore cache", "Upload cache archive"}
 PLATFORM = "x86_64-unknown-linux-gnu"
 ARCHIVE = f"QuantumAlg-{PLATFORM}.tar.gz"
 SITE_ASSET = "release-site.tar.gz"
@@ -215,7 +216,7 @@ def require_run(api, run_id, source_sha, *, completed=True, full_build=False):
     if completed and (run.get("status") != "completed" or run.get("conclusion") != "success"):
         raise ReleaseError("release producer has not completed successfully; rerun its original workflow")
     if full_build and not successful_build(api, run_id):
-        raise ReleaseError("cache producer lacks the complete successful build, lint, pack and upload gates")
+        raise ReleaseError("cache producer lacks the complete successful build, pack and upload gates")
     return run
 
 
@@ -346,10 +347,15 @@ def resolve_build(api, version, source_sha, *, current_run_id=None, runner=subpr
     return {"version": version, "source_sha": source_sha, "ready": "false" if complete else "true"}
 
 
-def validate_cache(directory, source_root, repository, source_sha, run_id, *, runner=subprocess.run):
+def cache_helper():
     spec = importlib.util.spec_from_file_location("quantumalg_build_cache", Path(__file__).with_name("build-cache.py"))
     cache = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(cache)
+    return cache
+
+
+def validate_cache(directory, source_root, repository, source_sha, run_id, *, runner=subprocess.run):
+    cache = cache_helper()
     identity, _ = cache.source_identity(Path(source_root), runner=runner)
     if identity["source_sha"] != source_sha:
         raise ReleaseError("cache checkout does not match the selected annotated source")
@@ -462,6 +468,49 @@ def check_prepared(api, directory):
     return prepared, release, assets
 
 
+def restore_lint_cache(api, directory, source_root, *, runner=subprocess.run):
+    """Restore verified draft bytes into the exact source checkout, without compiling it."""
+    prepared, release, assets = check_prepared(api, directory)
+    source_root = Path(source_root).resolve()
+    cache = cache_helper()
+    identity, sources = cache.source_identity(source_root, runner=runner)
+    if identity["source_sha"] != prepared["source_sha"]:
+        raise ReleaseError("lint checkout differs from the selected annotated source")
+    cache.active_platform(source_root, runner=runner)
+    destination = source_root / ".lake/build"
+    if destination.is_symlink() or (destination.exists() and any(destination.iterdir())):
+        raise ReleaseError("lint cache restore requires an empty library build directory")
+    with tempfile.TemporaryDirectory(prefix="release-lint-cache-") as temporary:
+        run_process(["gh", "release", "download", prepared["version"], "--repo", api.repository,
+                     "--pattern", ARCHIVE, "--dir", temporary], runner=runner)
+        archive = Path(temporary) / ARCHIVE
+        if (archive.is_symlink() or not archive.is_file()
+                or archive.stat().st_size != assets[ARCHIVE]["size"]
+                or file_digest(archive) != prepared["cache_sha256"]):
+            raise ReleaseError("downloaded lint cache differs from the verified Release asset")
+        cache.extract_archive(archive, destination, sources)
+    env = dict(os.environ, LAKE_ARTIFACT_CACHE="false", LAKE_CACHE_DIR="")
+    cache.run(["lake", "--no-build", "--no-cache", "build", "--wfail", *cache.modules_of(sources)],
+              source_root, runner=runner, env=env)
+    if cache.source_identity(source_root, runner=runner) != (identity, sources):
+        raise ReleaseError("source identity changed during lint cache restoration")
+    check_prepared(api, directory)
+    prepared["lint_identity"] = identity
+    (Path(directory) / "prepared.json").write_text(json.dumps(prepared, sort_keys=True) + "\n")
+
+
+def require_full_lint(directory, prepared):
+    path = Path(directory) / "lint.json"
+    identity = prepared.get("lint_identity")
+    if (not isinstance(identity, dict) or identity.get("source_sha") != prepared["source_sha"]
+            or type(identity.get("module_count")) is not int or identity["module_count"] <= 0
+            or path.is_symlink() or not path.is_file()):
+        raise ReleaseError("full-library lint of the restored release source has not passed")
+    receipt = json.loads(path.read_text(encoding="utf-8"))
+    if receipt != {"format_version": 1, **identity}:
+        raise ReleaseError("full-library lint receipt differs from the restored release source")
+
+
 class Git:
     def __init__(self, token="", *, runner=subprocess.run):
         self.runner = runner
@@ -477,6 +526,7 @@ class Git:
 
 def sync_site(api, git, directory):
     prepared, release, _ = check_prepared(api, directory)
+    require_full_lint(directory, prepared)
     require_no_newer_release(api, prepared["version"])
     source = Path(directory) / "site"
     url = f"https://github.com/{api.repository}.git"
@@ -565,9 +615,11 @@ def verify_live_site(api, prepared, *, opener=urllib.request.urlopen, sleep=time
 
 def finish(api, directory, pages_sha, *, waiter=wait_pages, live_check=verify_live_site):
     prepared, _, _ = check_prepared(api, directory)
+    require_full_lint(directory, prepared)
     waiter(api, pages_sha)
     live_check(api, prepared)
     prepared, release, assets = check_prepared(api, directory)
+    require_full_lint(directory, prepared)
     if api.request("GET", endpoint(api, "git/ref/heads/gh-pages")).get("object", {}).get("sha") != pages_sha:
         raise ReleaseError("Pages branch moved before formal Release publication")
     require_no_newer_release(api, prepared["version"])
@@ -617,9 +669,11 @@ def main(argv=None):
     child.add_argument("--run-id", required=True)
     child.add_argument("--version")
     child.add_argument("--output", type=Path, required=True)
-    for name in ("sync-site", "finish"):
+    for name in ("restore-lint-cache", "sync-site", "finish"):
         child = commands.add_parser(name)
         child.add_argument("--prepared", type=Path, required=True)
+        if name == "restore-lint-cache":
+            child.add_argument("--source-root", type=Path, required=True)
         if name == "finish":
             child.add_argument("--pages-sha", required=True)
     args = parser.parse_args(argv)
@@ -633,6 +687,9 @@ def main(argv=None):
             result = {"archive": ARCHIVE}
         elif args.command == "prepare-finalize":
             result = prepare_finalize(api, args.run_id, args.output, version=args.version)
+        elif args.command == "restore-lint-cache":
+            restore_lint_cache(api, args.prepared, args.source_root)
+            result = {"restored": "true"}
         elif args.command == "sync-site":
             result = {"pages_sha": sync_site(api, Git(token), args.prepared)}
         else:

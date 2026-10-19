@@ -28,5 +28,5 @@ jobs:
         run: python3 .github/build-cache.py build --root .
 
       - name: Full custom lint
-        run: lake lint
+        run: python3 .github/full-lint.py --root .
 

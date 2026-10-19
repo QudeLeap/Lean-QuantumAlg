@@ -61,9 +61,6 @@ jobs:
       - name: Build all library modules
         if: steps.release.outputs.ready == 'true'
         run: python3 .github/build-cache.py build --root .
-      - name: Run full lint
-        if: steps.release.outputs.ready == 'true'
-        run: lake lint
       - name: Pack and restore cache
         if: steps.release.outputs.ready == 'true'
         env:
