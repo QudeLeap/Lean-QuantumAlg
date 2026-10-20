@@ -296,59 +296,23 @@ def pack(root: Path, output: Path, repository: str, run_id: str, *, runner=subpr
     return metadata
 
 
-def verify(root: Path, directory: Path, repository: str, run_id: str | None = None,
-           *, runner=subprocess.run) -> dict:
-    identity, sources = source_identity(root, runner=runner)
-    platform = active_platform(root, runner=runner)
-    archive = directory / ARCHIVE_NAME
-    try:
-        metadata = json.loads((directory / (ARCHIVE_NAME + ".json")).read_text(encoding="utf-8"))
-    except (OSError, ValueError) as error:
-        raise CacheError("missing or malformed cache metadata") from error
-    expected = {"format_version": 1, "repository": repository, **identity,
-                "platform": platform, "archive_name": ARCHIVE_NAME}
-    if run_id is not None:
-        expected["run_id"] = str(run_id)
-    if not isinstance(metadata, dict) or any(metadata.get(key) != value for key, value in expected.items()):
-        raise CacheError("cache metadata does not match the requested source identity")
-    validate_names(repository, metadata.get("run_id", ""))
-    if not archive.is_file() or archive.stat().st_size >= MAX_ARCHIVE_BYTES:
-        raise CacheError("missing or oversized build archive")
-    archive_hash = file_digest(archive)
-    if metadata.get("archive_sha256") != archive_hash:
-        raise CacheError("cache archive digest mismatch")
-    checksum = (directory / (ARCHIVE_NAME + ".sha256")).read_text(encoding="utf-8")
-    if checksum != f"{archive_hash}  {ARCHIVE_NAME}\n":
-        raise CacheError("cache checksum file mismatch")
-    restore_check(root, archive, sources, runner=runner)
-    if source_identity(root, runner=runner) != (identity, sources):
-        raise CacheError("source identity changed during cache verification")
-    print(f"Verified cache for {identity['source_sha'][:12]} ({len(sources)} modules).", flush=True)
-    return metadata
-
-
 def main(argv=None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     commands = parser.add_subparsers(dest="command", required=True)
-    for name in ("build", "pack", "verify"):
+    for name in ("build", "pack"):
         command = commands.add_parser(name)
         command.add_argument("--root", type=Path, default=Path.cwd())
-        if name != "build":
-            command.add_argument("--repository", required=True)
-            command.add_argument("--run-id", required=name == "pack")
         if name == "pack":
+            command.add_argument("--repository", required=True)
+            command.add_argument("--run-id", required=True)
             command.add_argument("--output-dir", type=Path, required=True)
-        if name == "verify":
-            command.add_argument("--directory", type=Path, required=True)
     args = parser.parse_args(argv)
     try:
         root = args.root.resolve()
         if args.command == "build":
             build(root)
-        elif args.command == "pack":
-            pack(root, args.output_dir.resolve(), args.repository, args.run_id)
         else:
-            verify(root, args.directory.resolve(), args.repository, args.run_id)
+            pack(root, args.output_dir.resolve(), args.repository, args.run_id)
     except (CacheError, OSError, tarfile.TarError) as error:
         print(f"build-cache: {error}", file=sys.stderr)
         return 1

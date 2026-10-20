@@ -13,9 +13,9 @@ Lean-QuantumAlg is a Lean 4 library for formally verified quantum algorithms.
 
 <p align="center">
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset=".github/architecture-dark.svg">
-    <source media="(prefers-color-scheme: light)" srcset=".github/architecture-light.svg">
-    <img alt="Lean-QuantumAlg architecture: Util, Core, Components, Analysis, Primitives, and Algorithms." src=".github/architecture-light.svg" width="864">
+    <source media="(prefers-color-scheme: dark)" srcset=".github/architecture-dark.png">
+    <source media="(prefers-color-scheme: light)" srcset=".github/architecture-light.png">
+    <img alt="Lean-QuantumAlg architecture: Util, Core, Components, Analysis, Primitives, and Algorithms." src=".github/architecture-light.png" width="864">
   </picture>
 </p>
 
@@ -86,15 +86,7 @@ import QuantumAlg.Algorithms.QPE
 import QuantumAlg.Primitives.QFT
 ```
 
-In a checkout of a release tag on Linux x86_64, fetch the Mathlib and library caches:
-
-```bash
-lake exe cache get
-lake build :release
-```
-
-For a source build, including on other platforms, use `lake build` in place of
-`lake build :release`.
+To build a checkout from source, including on other platforms, run `lake build`.
 
 For theorem discovery, browse the [public theorem catalog](https://qudeleap.github.io/Lean-QuantumAlg/)
 or start from [`QuantumAlg.lean`](QuantumAlg.lean).

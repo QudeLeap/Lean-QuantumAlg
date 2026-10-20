@@ -37,8 +37,6 @@ ARCHIVE = f"QuantumAlg-{PLATFORM}.tar.gz"
 SITE_ASSET = "release-site.tar.gz"
 MAX_BYTES = 2 * 1024**3
 SITE_KEYS = {"format_version", "version", "source_sha", "notes_sha256", "site_sha256", "index_sha256"}
-LABEL = re.compile(re.escape(ARCHIVE)
-                   + r" \(CI (?P<run_id>[1-9][0-9]*), source (?P<source_sha>[0-9a-f]{40})\)\Z")
 
 
 class ReleaseError(RuntimeError):
@@ -180,25 +178,19 @@ def assets_for(api, release):
 
 def asset_digest(asset):
     value = asset.get("digest") or ""
-    if (asset.get("state") != "uploaded" or not isinstance(asset.get("size"), int)
+    if (asset.get("state") != "uploaded" or type(asset.get("size")) is not int
             or not 0 < asset["size"] < MAX_BYTES
             or not re.fullmatch(r"sha256:[0-9a-f]{64}", value)):
         raise ReleaseError("Release asset must have complete bytes and a GitHub SHA-256 digest")
     return value[7:]
 
 
-def cache_receipt(asset):
-    asset_digest(asset)
-    match = LABEL.fullmatch(asset.get("label") or "")
-    if not match:
-        raise ReleaseError("cache archive has no valid publisher receipt")
-    return match.groupdict()
-
-
-def successful_build(api, run_id):
-    # Reruns retain their run ID. A successful earlier attempt can supply the
-    # cache even when the latest attempt only verifies and reuses those bytes.
-    jobs = list(api.pages(endpoint(api, f"actions/runs/{run_id}/jobs?filter=all"), "jobs"))
+def successful_build(api, run_id, attempt):
+    # Pin the current attempt: an older successful attempt must not excuse
+    # skipped build or upload steps in the run supplied for publication.
+    if type(attempt) is not int or attempt < 1:
+        raise ReleaseError("Release CI must identify its current attempt")
+    jobs = list(api.pages(endpoint(api, f"actions/runs/{run_id}/attempts/{attempt}/jobs"), "jobs"))
     return any(job.get("name") == "build" and job.get("conclusion") == "success"
                and BUILD_STEPS <= {step.get("name") for step in job.get("steps", [])
                                    if step.get("conclusion") == "success"} for job in jobs)
@@ -214,20 +206,16 @@ def require_run(api, run_id, source_sha, *, completed=True, full_build=False):
             or run.get("event") not in ("repository_dispatch", "workflow_dispatch")):
         raise ReleaseError("release producer must be trusted Release CI on main at the selected source")
     if completed and (run.get("status") != "completed" or run.get("conclusion") != "success"):
-        raise ReleaseError("release producer has not completed successfully; rerun its original workflow")
-    if full_build and not successful_build(api, run_id):
-        raise ReleaseError("cache producer lacks the complete successful build, pack and upload gates")
+        raise ReleaseError("Release CI has not completed successfully; select a successful Release CI run")
+    if full_build and not successful_build(api, run_id, run.get("run_attempt")):
+        raise ReleaseError("Release CI lacks the complete successful build, pack and upload gates")
     return run
 
 
-def require_cache(api, assets, source_sha):
+def require_cache(assets):
     if ARCHIVE not in assets:
         raise ReleaseError("the release cache archive is missing")
-    receipt = cache_receipt(assets[ARCHIVE])
-    if receipt["source_sha"] != source_sha:
-        raise ReleaseError("cache receipt source differs from the annotated tag")
-    require_run(api, receipt["run_id"], source_sha, full_build=True)
-    return receipt
+    return asset_digest(assets[ARCHIVE])
 
 
 def tree_digest(root):
@@ -322,29 +310,14 @@ def verify_handoff(api, version, source_sha, *, runner=subprocess.run):
     return tag, release, assets
 
 
-def resolve_build(api, version, source_sha, *, current_run_id=None, runner=subprocess.run):
+def resolve_build(api, version, source_sha, *, runner=subprocess.run):
     _, release, assets = verify_handoff(api, version, source_sha, runner=runner)
-    complete = False
-    if ARCHIVE in assets:
-        asset = assets[ARCHIVE]
-        asset_digest(asset)
-        if asset.get("label"):
-            receipt = cache_receipt(asset)
-            if receipt["source_sha"] != source_sha:
-                raise ReleaseError("existing cache receipt source conflicts")
-            if receipt["run_id"] == str(current_run_id):
-                require_run(api, receipt["run_id"], source_sha, completed=False)
-                complete = successful_build(api, receipt["run_id"])
-            else:
-                require_cache(api, assets, source_sha)
-                complete = True
-        elif not release.get("draft"):
-            raise ReleaseError("published cache is missing its publication receipt")
-    if not release.get("draft"):
-        if not complete:
-            require_cache(api, assets, source_sha)
-        complete = True
-    return {"version": version, "source_sha": source_sha, "ready": "false" if complete else "true"}
+    if ARCHIVE in assets or not release.get("draft"):
+        require_cache(assets)
+    # Drafts always execute their own complete build and restore gates. A
+    # completed release needs no new build, upload or publication.
+    return {"version": version, "source_sha": source_sha,
+            "ready": "true" if release.get("draft") else "false"}
 
 
 def cache_helper():
@@ -383,14 +356,9 @@ def upload_cache(api, version, source_sha, run_id, source_root, directory, *, ru
     require_run(api, run_id, source_sha, completed=False)
     _, release, assets = verify_handoff(api, version, source_sha, runner=runner)
     if not release.get("draft"):
-        require_cache(api, assets, source_sha)
-        return
-    label = f"{ARCHIVE} (CI {run_id}, source {source_sha})"
+        require_cache(assets)
     path = Path(directory) / ARCHIVE
     if existing := assets.get(ARCHIVE):
-        if existing.get("label") and existing["label"] != label:
-            require_cache(api, assets, source_sha)
-            return
         if asset_digest(existing) != record["archive_sha256"] or existing["size"] != path.stat().st_size:
             raise ReleaseError("existing cache bytes conflict; refusing to replace the archive")
     else:
@@ -398,13 +366,6 @@ def upload_cache(api, version, source_sha, run_id, source_root, directory, *, ru
     actual = assets_for(api, release).get(ARCHIVE)
     if not actual or asset_digest(actual) != record["archive_sha256"] or actual["size"] != path.stat().st_size:
         raise ReleaseError("uploaded cache bytes failed readback")
-    if actual.get("label") and actual["label"] != label:
-        raise ReleaseError("cache publication receipt changed during upload")
-    if actual.get("label") != label:
-        api.request("PATCH", endpoint(api, f"releases/assets/{actual['id']}"), {"label": label})
-    actual = assets_for(api, release).get(ARCHIVE)
-    if not actual or actual.get("label") != label or asset_digest(actual) != record["archive_sha256"]:
-        raise ReleaseError("cache publication receipt failed readback")
 
 
 def prepare_finalize(api, run_id, output, *, version=None, runner=subprocess.run):
@@ -420,16 +381,17 @@ def prepare_finalize(api, run_id, output, *, version=None, runner=subprocess.run
     tag = annotated_tag(api, version)
     release = get_release(api, version)
     assets = assets_for(api, release)
-    receipt = require_cache(api, assets, source_sha)
+    require_cache(assets)
     if SITE_ASSET not in assets:
         if release.get("draft"):
             raise ReleaseError("draft Release is missing its site handoff")
         return {"version": version, "source_sha": source_sha, "ready": "false"}
+    require_run(api, run_id, source_sha, full_build=True)
     output = Path(output)
     download_site(api, release, assets[SITE_ASSET], output, runner=runner)
     metadata = validate_site(output, version, source_sha, release["body"])
     prepared = {"repository": api.repository, **metadata, "run_id": str(run_id),
-                "cache_run_id": receipt["run_id"], "tag_sha": tag["tag_sha"],
+                "tag_sha": tag["tag_sha"],
                 "release_id": release["id"], "site_asset_id": assets[SITE_ASSET]["id"],
                 "site_asset_sha256": asset_digest(assets[SITE_ASSET]),
                 "cache_asset_id": assets[ARCHIVE]["id"], "cache_sha256": asset_digest(assets[ARCHIVE])}
@@ -446,7 +408,7 @@ def check_prepared(api, directory):
     tag = annotated_tag(api, version)
     if tag != {"source_sha": sha, "tag_sha": prepared["tag_sha"]}:
         raise ReleaseError("annotated tag changed after preparation")
-    require_run(api, prepared["run_id"], sha)
+    require_run(api, prepared["run_id"], sha, full_build=True)
     release = get_release(api, version)
     if release["id"] != prepared["release_id"]:
         raise ReleaseError("Release identity changed after preparation")
@@ -454,9 +416,8 @@ def check_prepared(api, directory):
     if any(prepared.get(key) != value for key, value in metadata.items()):
         raise ReleaseError("prepared site metadata changed")
     assets = assets_for(api, release)
-    receipt = require_cache(api, assets, sha)
-    if (receipt["run_id"] != prepared["cache_run_id"]
-            or assets[ARCHIVE]["id"] != prepared["cache_asset_id"]
+    require_cache(assets)
+    if (assets[ARCHIVE]["id"] != prepared["cache_asset_id"]
             or asset_digest(assets[ARCHIVE]) != prepared["cache_sha256"]):
         raise ReleaseError("cache archive changed after preparation")
     if SITE_ASSET in assets:
@@ -640,7 +601,7 @@ def finish(api, directory, pages_sha, *, waiter=wait_pages, live_check=verify_li
     final = assets_for(api, actual)
     if set(final) != {ARCHIVE}:
         raise ReleaseError("formal Release must retain only its build cache archive")
-    require_cache(api, final, prepared["source_sha"])
+    require_cache(final)
     if asset_digest(final[ARCHIVE]) != prepared["cache_sha256"]:
         raise ReleaseError("final cache archive changed during publication")
     return actual["html_url"]
@@ -681,7 +642,7 @@ def main(argv=None):
     api = GitHub(args.repository, token)
     try:
         if args.command == "resolve-build":
-            result = resolve_build(api, args.version, args.sha, current_run_id=os.environ.get("GITHUB_RUN_ID"))
+            result = resolve_build(api, args.version, args.sha)
         elif args.command == "upload-cache":
             upload_cache(api, args.version, args.sha, args.run_id, args.source_root, args.directory)
             result = {"archive": ARCHIVE}
