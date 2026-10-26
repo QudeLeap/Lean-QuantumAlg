@@ -30,19 +30,21 @@ open ClassicalRoutines
 
 noncomputable section
 
+variable {additionalMembers : Nat}
+
 variable {model : ExecutionModel} [BitWord.Selected model]
   {root topCtx inner : RuntimeCtx model.kind} {N : Nat}
 
 omit [BitWord.Selected model] in
-private lemma initialization_parameter_eq (refs : Refs root topCtx inner N) :
+private lemma initialization_parameter_eq (refs : Refs root topCtx inner N additionalMembers) :
     (initializationRefs refs).setup.parameter =
       LatticeBatchRecoveryWorkspaceViews.parameterAt refs.topTransport refs.pairTransport
         refs.parameter :=
   ClassicalWorkspace.Transport.liftInput_compose refs.topTransport refs.pairTransport refs.parameter
 
 omit [BitWord.Selected model] in
-private lemma pairSetup_eq (refs : Refs root topCtx inner N)
-    (index : Fin LatticePairRecoveryFold.PairCount) :
+private lemma pairSetup_eq (refs : Refs root topCtx inner N additionalMembers)
+    (index : Fin (LatticePairRecoveryFold.PairCount additionalMembers)) :
     ((endpointRefs refs).tail.fold.pair index).pair.setup = (initializationRefs refs).setup := by
   change LatticeCandidateSharedWorkspaceLayout.setupRefs refs.cells.pair.core.shared
       refs.pairTransport (refs.topTransport.liftInput refs.parameter) =
@@ -52,7 +54,7 @@ private lemma pairSetup_eq (refs : Refs root topCtx inner N)
   rw [ClassicalWorkspace.Transport.liftInput_compose]
 
 private lemma preparedSamples_afterInitialization (input : Input N)
-    (sample : Fin (2 ^ residueSamplingBits N)) (refs : Refs root topCtx inner N)
+    (sample : Fin (2 ^ residueSamplingBits N)) (refs : Refs root topCtx inner N additionalMembers)
     (separation : Separation refs) (store : Store inner) :
     LatticePairRecoveryBatch.preparedSamples (preparedResidue sample)
         (endpointRefs refs).tail.terminals
@@ -80,7 +82,8 @@ private lemma preparedSamples_afterInitialization (input : Input N)
 
 /-- Shared initialization and the complete endpoint realize the original shaped batch value. -/
 lemma into_correct (input : Input N) (sample : Fin (2 ^ residueSamplingBits N))
-    (refs : Refs root topCtx inner N) (separation : Separation refs) (store : Store inner)
+    (refs : Refs root topCtx inner N additionalMembers) (separation : Separation refs) (store :
+      Store inner)
     (initial : InitialConditions input sample refs store) :
     Relation sample refs store (step (model := model) input refs store).1 := by
   let middle := (LatticeSharedQuadraticInitialization.step (model := model)

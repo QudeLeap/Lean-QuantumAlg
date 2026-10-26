@@ -432,6 +432,50 @@ lemma exists_fixed_offset (offsets : Finset G) (branches : Finset Branch)
         simp
   exact Finset.exists_le_of_sum_le offsetsNonempty scaledTotal
 
+section BranchDependentAddends
+
+local instance (proposition : Prop) : Decidable proposition := Classical.propDecidable proposition
+
+/-- Finite averaging also permits the addend at every scheduled step to depend
+on the complete branch.  This includes unsigned window addresses; a zero
+address can be represented by an unselected step.  The offset is selected once
+for the entire branch family, rather than separately for each branch. -/
+lemma exists_fixed_offset_branch_addends (offsets : Finset G) (branches : Finset Branch)
+    (offsetsNonempty : offsets.Nonempty) (stepCount : Nat)
+    (selected : Branch → Fin stepCount → Bool)
+    (addend : Branch → Fin stepCount → G) :
+    ∃ offset ∈ offsets,
+      offsets.card * (branches.filter (fun branch =>
+        ¬ Admissible stepCount selected (addend branch) offset branch)).card ≤
+        branches.card * (2 * stepCount) := by
+  classical
+  let bad : G → Branch → Prop := fun offset branch =>
+    ¬ Admissible stepCount selected (addend branch) offset branch
+  have total : ∑ offset ∈ offsets, (branches.filter (bad offset)).card ≤
+      branches.card * (2 * stepCount) := by
+    calc
+      ∑ offset ∈ offsets, (branches.filter (bad offset)).card =
+          ∑ branch ∈ branches, (offsets.filter (fun offset => bad offset branch)).card := by
+        simp_rw [Finset.card_filter]
+        rw [Finset.sum_comm]
+      _ ≤ ∑ _branch ∈ branches, 2 * stepCount := by
+        apply Finset.sum_le_sum
+        intro branch _
+        exact badOffsets_card_le_two_mul offsets stepCount selected (addend branch) branch
+      _ = branches.card * (2 * stepCount) := by simp
+  have scaled : ∑ offset ∈ offsets,
+      offsets.card * (branches.filter (bad offset)).card ≤
+      ∑ _offset ∈ offsets, branches.card * (2 * stepCount) := by
+    calc
+      _ = offsets.card * ∑ offset ∈ offsets,
+          (branches.filter (bad offset)).card := by rw [Finset.mul_sum]
+      _ ≤ offsets.card * (branches.card * (2 * stepCount)) :=
+        Nat.mul_le_mul_left offsets.card total
+      _ = _ := by simp
+  exact Finset.exists_le_of_sum_le offsetsNonempty scaled
+
+end BranchDependentAddends
+
 /-! ## Strict domain for the controlled point-addition schedule
 
 The reversible straight-line program evaluates its first inversion even when

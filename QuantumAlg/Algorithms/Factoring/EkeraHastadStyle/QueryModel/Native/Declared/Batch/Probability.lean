@@ -318,23 +318,23 @@ lemma reusedTerminals_reference
     state weight outcomes leftRef rightRef
 
 
-/-- The first prepared member and fifteen paid successors retain any
-protected structural read jointly with all sixteen physical outcomes. -/
-lemma firstTerminals_frame_reference
+private def FirstTerminalsFrameReferenceStatement : Prop :=
+  ∀ (base : RuntimeCtx .quantum) (noQuantum : base.quantumWires = [])
+    (N : Nat) (input : Input N)
     {shape : CShape} (observed : CInputRef (context base noQuantum N) shape)
-    (measuredSeparate : ∀ position,
+    (_measuredSeparate : ∀ position,
       (Native.cells (storageContext base N) (storage_empty base noQuantum N) N position).key ∉
         observed.storageKeys)
-    (workingSeparate :
+    (_workingSeparate :
       (Native.resultRef (storageContext base N) (storage_empty base noQuantum N) N).key ∉
         observed.storageKeys)
-    (slotSeparate : ∀ index, (terminalRef base noQuantum N index).key ∉ observed.storageKeys)
+    (_slotSeparate : ∀ index, (terminalRef base noQuantum N index).key ∉ observed.storageKeys)
     {Reference : Register} {History : Type} [Fintype History]
     (state : State (context base noQuantum N) Reference ((model N).HiddenState × History))
-    (seeded : BasisSeeded.Holds (context base noQuantum N).quantumLayout.zeroLabel state)
+    (_seeded : BasisSeeded.Holds (context base noQuantum N).quantumLayout.zeroLabel state)
     (weight : (ParameterShape N).Value → shape.Value → ℂ)
     (outcomes : Fin 16 → Fin (measurementBits N) → Bool)
-    (leftRef rightRef : Reference.Index) :
+    (leftRef rightRef : Reference.Index),
     ExecutionState.referenceFiberSum
       ((firstBatch base noQuantum N).execute (sourceEnvironment input) Reference state)
       (fun entry _ => weight
@@ -347,7 +347,14 @@ lemma firstTerminals_frame_reference
         (entry.1.read observed) *
         ∏ index : Fin 16, Declared.sourceWeight N input
           (entry.1.read (.storage (parameterRef base noQuantum N).toCStorageRef))
-          (outcomes index)) leftRef rightRef := by
+          (outcomes index)) leftRef rightRef
+
+/-- The first prepared member and fifteen paid successors retain any
+protected structural read jointly with all sixteen physical outcomes. -/
+lemma firstTerminals_frame_reference : FirstTerminalsFrameReferenceStatement := by
+  unfold FirstTerminalsFrameReferenceStatement
+  intro base noQuantum N input shape observed measuredSeparate workingSeparate slotSeparate
+    Reference History historyFintype state seeded weight outcomes leftRef rightRef
   let count := 15
   let indices : Fin 16 → Fin 16 := id
   have distinct : Function.Injective indices := Function.injective_id

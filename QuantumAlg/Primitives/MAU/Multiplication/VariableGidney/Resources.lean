@@ -13,9 +13,9 @@ import all QuantumAlg.Core.Base.Accounting.Support
 /-!
 # Independent native resources of three-word variable multiplication
 
-Each first-input bit controls one literal MAC gate list. The small-width
-branch emits one native gate per source gate; the larger-width branch uses
-at most four native gates per source gate, borrowing only existing wires.
+Each first-input bit selects the actual two-control BCBC MAC word. The
+original small-width paths remain literal; the larger-width path pushes
+controls only into comparisons and retains the original fourfold envelope.
 Every stage restores its borrowed work and retains both input words.
 -/
 
@@ -65,21 +65,8 @@ lemma eventBound_256 : eventBound 256 = 3096220532736 := by decide
 lemma variableGidney_stageGates_length_bound (width : Nat)
     (modulus : Fin (2 ^ width + 1)) (index : Fin width) :
     (stageGates width modulus index).length ≤ stageEventBound width := by
-  have source := Accumulate.Gidney.gidneyAccumulateGates_length_bound
-    width modulus (2 ^ index.val)
-  by_cases small : width ≤ 1
-  · simp only [stageGates, dif_pos small, List.length_map]
-    unfold stageEventBound
-    omega
-  · simp only [stageGates, dif_neg small]
-    have controlled := controlRightList_length_bound
-      (BinaryLabelEncoding.finIdentityBit width) (bodyBits width)
-      (inputBits_wire width) (bodyBits_wire width)
-      (by change 5 ≤ width + (width + width); omega)
-      (inputBit width index)
-      (Accumulate.Gidney.gates width modulus (2 ^ index.val))
-    unfold stageEventBound
-    omega
+  exact Accumulate.Gidney.ControlPushdown.twoGates_bound width width index modulus
+    (2 ^ index.val)
 
 /-- All emitted coordinates belong to the default-model native alphabet. -/
 lemma variableGidney_stage_native_support (width : Nat)

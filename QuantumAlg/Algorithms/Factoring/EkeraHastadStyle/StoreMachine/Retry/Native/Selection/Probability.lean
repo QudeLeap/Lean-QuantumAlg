@@ -60,6 +60,15 @@ lemma batch_outputValue_none {N : Nat} (specification : Input N) :
   intro value
   cases value <;> simp [LatticeBatchRecoveryOutput.outputValue]
 
+lemma batch_outputValue_none_atCount {N sampleCount : Nat} (specification : Input N) :
+    (sampledBatchOutputPMFAtCount specification sampleCount).map
+      (LatticeBatchRecoveryOutput.outputValue (N := N))
+        CShape.Value.optionNone = sampledBatchOutputPMFAtCount specification sampleCount none := by
+  apply map_point_of_singleton_fiber (sampledBatchOutputPMFAtCount specification sampleCount)
+    (LatticeBatchRecoveryOutput.outputValue (N := N)) none CShape.Value.optionNone
+  intro value
+  cases value <;> simp [LatticeBatchRecoveryOutput.outputValue]
+
 /-- Read the natural payload of the actual nominal optional word as a mathematical observation. -/
 public def decodeFactor {N : Nat} : (LatticeBatchRecoveryOutput.OutputShape N).Value → Option Nat
   | .optionNone => none

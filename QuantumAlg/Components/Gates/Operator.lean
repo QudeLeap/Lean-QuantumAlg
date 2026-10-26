@@ -63,7 +63,7 @@ lemma qubitPrimitive_x_operator :
   fin_cases label <;> decide
 
 /-- Metadata-free Pauli-Y operator `[[0, -i], [i, 0]]`. -/
-def YOp : UnitaryOperator (Qubits 1) :=
+@[expose] public def YOp : UnitaryOperator (Qubits 1) :=
   UnitaryOperator.ofMatrix
     (!![(0 : ℂ), -Complex.I; Complex.I, 0] : HilbertOperator (Qubits 1)) (by
       rw [Matrix.mem_unitaryGroup_iff]
@@ -72,7 +72,7 @@ def YOp : UnitaryOperator (Qubits 1) :=
         simp [Matrix.mul_apply, Matrix.star_apply])
 
 /-- Metadata-free Pauli-Z operator `[[1, 0], [0, -1]]`. -/
-def ZOp : UnitaryOperator (Qubits 1) :=
+@[expose] public def ZOp : UnitaryOperator (Qubits 1) :=
   UnitaryOperator.ofMatrix
     (!![(1 : ℂ), 0; 0, -1] : HilbertOperator (Qubits 1)) (by
       rw [Matrix.mem_unitaryGroup_iff]

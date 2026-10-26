@@ -12,6 +12,7 @@ public import QuantumAlg.Core.Execution.Classical.Native
 public import QuantumAlg.Core.Execution.Classical.Query
 public import QuantumAlg.Core.Execution.Store
 public import QuantumAlg.Core.Base.Accounting.Context.Embedding
+public import QuantumAlg.Core.Base.Accounting.Context.OwnedLayoutView
 public import QuantumAlg.Core.Base.Classical.Oracle.Composition
 import all QuantumAlg.Core.Execution.Classical.Native
 import all QuantumAlg.Core.Execution.Classical.Query
@@ -96,6 +97,13 @@ public inductive Circuit : (model : ExecutionModel) →
   | embed {model : ExecutionModel} {localCtx caller : RuntimeCtx model.kind}
       {allowAllocation : Bool} (placement : ContextEmbedding localCtx caller)
       (body : Circuit model localCtx localCtx false) : Circuit model caller caller allowAllocation
+  /-- Expose ordered owned slices, execute without allocation, then restore their grouping. -/
+  | ownedLayoutView {gates : GateModel} {oracles : OracleModel}
+      {operations : ClassicalOpModel} {classicalOracles : ClassicalOracleModel}
+      {original viewed : RuntimeCtx .quantum} {allowAllocation : Bool}
+      (view : OwnedLayoutView original viewed)
+      (body : Circuit (.quantum gates oracles operations classicalOracles) viewed viewed false) :
+      Circuit (.quantum gates oracles operations classicalOracles) original original allowAllocation
   /-- Run disjoint classical children with independent persistent services. -/
   | parallelClassical {operations : ClassicalOpModel}
       {leftService rightService parentService : ClassicalOracleModel}
@@ -137,10 +145,12 @@ public def Path {model : ExecutionModel} {pre post : RuntimeCtx model.kind}
   | .iterate count body => Fin count → body.Path
   | .workspace _ _ _ _ body => body.Path
   | .embed _ body => body.Path
+  | .ownedLayoutView _ body => body.Path
   | .parallelClassical _ _ first second => first.Path × second.Path
   | .parallelQuantum _ _ first second => first.Path × second.Path
 
 /-- Mathematical execution histories are finite and allocate no physical runtime storage. -/
+@[implicit_reducible]
 public noncomputable instance pathFintype {model : ExecutionModel}
     {pre post : RuntimeCtx model.kind} {allowAllocation : Bool}
     (code : Circuit model pre post allowAllocation) : Fintype code.Path := by
@@ -160,6 +170,7 @@ public noncomputable instance pathFintype {model : ExecutionModel}
       exact inferInstanceAs (Fintype (Fin count → body.Path))
   | workspace ctx key shape fresh body bodyIH => exact bodyIH
   | embed placement body bodyIH => exact bodyIH
+  | ownedLayoutView view body bodyIH => exact bodyIH
   | parallelClassical join separate first second firstIH secondIH
   | parallelQuantum join separate first second firstIH secondIH =>
       letI := firstIH

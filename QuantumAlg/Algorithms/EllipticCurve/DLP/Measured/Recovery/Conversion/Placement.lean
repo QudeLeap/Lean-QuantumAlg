@@ -111,6 +111,17 @@ def coordinateOperator (width m : Nat) (modulus : Fin (2 ^ width + 1))
     ((coordinateProgram width m modulus coefficient coordinate).matrix environment.quantum)
     (1 : UnitaryOperator Reference)
 
+/-- The certified placement matrix reads the retained bank coordinates directly. -/
+private lemma coordinateProgram_entry (width m : Nat) (modulus : Fin (2 ^ width + 1))
+    (coefficient : (ZMod modulus.val)ˣ) (coordinate : MeasuredPointAddition.Coordinate)
+    (row column : (Recovery.Layout.terminal width m).register.Index) :
+    ((coordinateProgram width m modulus coefficient coordinate).matrix environment.quantum)
+        row column =
+      ((Encoding.readyProgram width 2 modulus coefficient coordinate).matrix environment.quantum)
+        ((Placement width m).basis row).1 ((Placement width m).basis column).1 := by
+  rw [coordinateProgram, UnitaryCircuit.placeAt_matrix, UnitaryCircuit.operatorAt_entry,
+    selectedInput_eq, selectedInput_eq, if_pos (complement_eq width m row column), mul_one]
+
 /-- Actual physical placement is the existing ready operator beside the complete cell frame. -/
 lemma coordinateOperator_outer (width m : Nat) (modulus : Fin (2 ^ width + 1))
     (coefficient : (ZMod modulus.val)ˣ) (coordinate : MeasuredPointAddition.Coordinate)
@@ -130,8 +141,7 @@ lemma coordinateOperator_outer (width m : Nat) (modulus : Fin (2 ^ width + 1))
   change ((coordinateProgram width m modulus coefficient coordinate).matrix environment.quantum)
     row.1 column.1 *
     (if row.2 = column.2 then 1 else 0) = _
-  rw [coordinateProgram, UnitaryCircuit.placeAt_matrix, UnitaryCircuit.operatorAt_entry,
-    selectedInput_eq, selectedInput_eq, if_pos (complement_eq width m row.1 column.1), mul_one]
+  rw [coordinateProgram_entry]
   change ((Encoding.readyProgram width 2 modulus coefficient coordinate).matrix environment.quantum)
       ((Placement width m).basis row.1).1 ((Placement width m).basis column.1).1 *
         (if row.2 = column.2 then 1 else 0) =

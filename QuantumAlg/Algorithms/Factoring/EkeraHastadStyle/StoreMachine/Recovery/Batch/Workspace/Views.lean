@@ -32,6 +32,8 @@ open ClassicalRoutines
 
 noncomputable section
 
+variable {additionalMembers : Nat}
+
 /-- Compose the persistent-top and reusable-pair transports. -/
 def deepTransport {kind : ProblemKind}
     {root topCtx inner : RuntimeCtx kind}
@@ -61,8 +63,8 @@ def terminalsAt {kind : ProblemKind}
     {root topCtx inner : RuntimeCtx kind} {N : Nat}
     (topTransport : Transport root topCtx)
     (pairTransport : Transport topCtx inner)
-    (terminals : LatticePairRecoveryBatch.Terminals root N) :
-    LatticePairRecoveryBatch.Terminals inner N :=
+    (terminals : LatticePairRecoveryBatch.Terminals root N additionalMembers) :
+    LatticePairRecoveryBatch.Terminals inner N additionalMembers :=
   LatticePairRecoveryFoldWorkspace.liftTerminals pairTransport
     (LatticeBatchRecoveryWorkspace.terminalsAt topTransport terminals)
 
@@ -77,16 +79,16 @@ def initializationRefs {kind : ProblemKind}
   LatticeSharedQuadraticWorkspace.refs cells.pair.core.shared cells.quadratic
     (deepTransport topTransport pairTransport) parameter
 
-/-- The 120 indexed pair views over one reusable physical allocation. -/
+/-- All indexed pair views over one reusable physical allocation. -/
 def foldRefs {kind : ProblemKind}
     {root topCtx inner : RuntimeCtx kind} {N : Nat}
     (topTransport : Transport root topCtx)
     (pairTransport : Transport topCtx inner)
     (top : LatticeBatchRecoveryWorkspaceLayout.TopCells topCtx N)
     (cells : LatticePairFactorWorkspaceSeparation.Cells inner N)
-    (terminals : LatticePairRecoveryBatch.Terminals root N)
+    (terminals : LatticePairRecoveryBatch.Terminals root N additionalMembers)
     (parameter : CInputRef root (ParameterShape N)) :
-    LatticePairRecoveryFold.Refs inner N :=
+    LatticePairRecoveryFold.Refs inner N additionalMembers :=
   LatticePairRecoveryFoldWorkspace.refs pairTransport cells
     (LatticeBatchRecoveryWorkspaceLayout.factorSelection top)
     (LatticeBatchRecoveryWorkspace.terminalsAt topTransport terminals)
@@ -144,7 +146,7 @@ lemma foldSeparation {kind : ProblemKind}
     (cells : LatticePairFactorWorkspaceSeparation.Cells inner N)
     (certificates :
       LatticePairFactorWorkspaceSeparation.Certificates pairTransport cells)
-    (terminals : LatticePairRecoveryBatch.Terminals root N)
+    (terminals : LatticePairRecoveryBatch.Terminals root N additionalMembers)
     (parameter : CInputRef root (ParameterShape N)) :
     LatticePairRecoveryFold.Separation
       (foldRefs topTransport pairTransport top cells terminals parameter) := by
@@ -296,9 +298,9 @@ def tailRefs {kind : ProblemKind}
     (pairTransport : Transport topCtx inner)
     (top : LatticeBatchRecoveryWorkspaceLayout.TopCells topCtx N)
     (cells : LatticePairFactorWorkspaceSeparation.Cells inner N)
-    (terminals : LatticePairRecoveryBatch.Terminals root N)
+    (terminals : LatticePairRecoveryBatch.Terminals root N additionalMembers)
     (parameter : CInputRef root (ParameterShape N)) :
-    LatticeBatchRecoveryTail.Refs inner N where
+    LatticeBatchRecoveryTail.Refs inner N additionalMembers where
   parameter := parameterAt topTransport pairTransport parameter
   terminals := terminalsAt topTransport pairTransport terminals
   seed := LatticeBatchRecoveryWorkspaceLayout.seedRefs
@@ -320,7 +322,7 @@ private lemma seedInitialFrames {kind : ProblemKind}
     (cells : LatticePairFactorWorkspaceSeparation.Cells inner N)
     (certificates :
       LatticePairFactorWorkspaceSeparation.Certificates pairTransport cells)
-    (terminals : LatticePairRecoveryBatch.Terminals root N)
+    (terminals : LatticePairRecoveryBatch.Terminals root N additionalMembers)
     (parameter : CInputRef root (ParameterShape N)) :
     ∀ index, LatticeBatchRecoveryTail.SeedInitialFrameAvoids
       (tailRefs topTransport pairTransport top cells terminals parameter).seed
@@ -389,7 +391,7 @@ private lemma seedTerminalFrames {kind : ProblemKind}
     (top : LatticeBatchRecoveryWorkspaceLayout.TopCells topCtx N)
     (topSeparated : top.TransportSeparated topTransport)
     (cells : LatticePairFactorWorkspaceSeparation.Cells inner N)
-    (terminals : LatticePairRecoveryBatch.Terminals root N)
+    (terminals : LatticePairRecoveryBatch.Terminals root N additionalMembers)
     (parameter : CInputRef root (ParameterShape N)) :
     LatticeBatchRecoveryTail.SeedTerminalFrameAvoids
       (tailRefs topTransport pairTransport top cells terminals parameter) := by
@@ -423,7 +425,7 @@ lemma tailSeparation {kind : ProblemKind}
     (cells : LatticePairFactorWorkspaceSeparation.Cells inner N)
     (certificates :
       LatticePairFactorWorkspaceSeparation.Certificates pairTransport cells)
-    (terminals : LatticePairRecoveryBatch.Terminals root N)
+    (terminals : LatticePairRecoveryBatch.Terminals root N additionalMembers)
     (parameter : CInputRef root (ParameterShape N)) :
     LatticeBatchRecoveryTail.Separation
       (tailRefs topTransport pairTransport top cells terminals parameter) where

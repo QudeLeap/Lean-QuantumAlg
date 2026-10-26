@@ -35,6 +35,11 @@ namespace CompactCertificate
 
 open MK.Compact
 
+-- Keep the two actual semantic heads intact while applying their proved
+-- cleanup projections; expanding the full routed gate interpreter here repeats
+-- the same conversion for every field. This attribute is local to this proof file.
+attribute [local irreducible] activeBranchBodyStep activeBranchRoutedStep
+
 set_option maxHeartbeats 2000000 in
 -- The four exact word bridges normalize the literal routed gate stages.
 /-- On the active `uEven` branch, the complete compact body has exactly the

@@ -180,9 +180,8 @@ lemma completedFinite_keygen_success_ge
         {pair | ¬ 2 ^ RSA.GeneratorOrder.gcdLossBits bitWidth ≤
           Nat.gcd (pair.p - 1) (pair.q - 1)} *
         (1 - ENNReal.ofReal (η / 2)) := by
-      simpa only [mul_comm] using
-        mul_le_mul_right (good_key_mass bitWidth nonempty effective)
-          (1 - ENNReal.ofReal (η / 2))
+      exact mul_le_mul_left (good_key_mass bitWidth nonempty effective)
+        (1 - ENNReal.ofReal (η / 2))
     _ ≤ _ := good_mass_times_floor_le base noQuantum bitWidth nonempty inputs
       effective η etaPositive
 

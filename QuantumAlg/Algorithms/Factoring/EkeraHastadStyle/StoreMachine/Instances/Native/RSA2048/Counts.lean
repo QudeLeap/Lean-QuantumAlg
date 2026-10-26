@@ -68,7 +68,7 @@ lemma recoveryEventCountWidthBound_eq :
     LatticeRecoveryResources.candidateScanWork, LatticeRecoveryResources.candidateSlotCardBound,
     LatticeRecoveryResources.quadraticGuardedCardBound, LatticeRecoveryResources.natSqrtCardBound,
     QuadraticPrefix.discriminantWidth, QuadraticPrefix.centerWidth,
-    recoveryEventCountBound]
+    recoveryEventCountBound, Nat.choose_two_right]
 
 -- Substitute the proved scalar coordinate width before considering the complete formulas.
 attribute [local irreducible] RSA.ShortLogWidths.coordinateWidth

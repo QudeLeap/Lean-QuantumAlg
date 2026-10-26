@@ -11,6 +11,8 @@ jobs:
     # Selected release pushes are verified by Release CI after the draft is ready.
     if: ${{ github.event_name != 'push' || !startsWith(github.event.head_commit.message, 'Release ') }}
     runs-on: ubuntu-latest
+    env:
+      LAKE_ARTIFACT_CACHE: "false"
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -20,13 +22,51 @@ jobs:
         with:
           auto-config: false
           use-mathlib-cache: true
+          use-github-cache: false
           build: false
           test: false
           lint: false
+
+      - name: Identify compatible owner cache
+        id: owner-cache-key
+        run: python3 .github/build-cache.py ci-key --root . >> "$GITHUB_OUTPUT"
+
+      - name: Restore owner cache
+        id: owner-cache
+        uses: actions/cache/restore@v4
+        with:
+          path: ${{ runner.temp }}/quantumalg-owner-cache
+          key: ${{ steps.owner-cache-key.outputs.key }}
+          restore-keys: ${{ steps.owner-cache-key.outputs.restore_prefix }}
+
+      - name: Validate and apply owner cache
+        if: steps.owner-cache.outputs.cache-matched-key != ''
+        run: >-
+          python3 .github/build-cache.py ci-restore --root .
+          --directory "$RUNNER_TEMP/quantumalg-owner-cache"
 
       - name: Build all library modules with warnings as errors
         run: python3 .github/build-cache.py build --root .
 
       - name: Full custom lint
         run: python3 .github/full-lint.py --root .
+
+      - name: Stage complete owner cache
+        if: success() && steps.owner-cache.outputs.cache-hit != 'true'
+        run: >-
+          python3 .github/build-cache.py ci-stage --root .
+          --directory "$RUNNER_TEMP/quantumalg-owner-cache"
+
+      - name: Verify staged owner cache without rebuilding
+        if: success() && steps.owner-cache.outputs.cache-hit != 'true'
+        run: >-
+          python3 .github/build-cache.py ci-verify --root .
+          --directory "$RUNNER_TEMP/quantumalg-owner-cache"
+
+      - name: Save successful owner cache
+        if: success() && steps.owner-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: ${{ runner.temp }}/quantumalg-owner-cache
+          key: ${{ steps.owner-cache-key.outputs.key }}
 

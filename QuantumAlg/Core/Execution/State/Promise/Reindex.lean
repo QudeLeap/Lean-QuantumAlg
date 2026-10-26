@@ -10,6 +10,7 @@ public import QuantumAlg.Core.Execution.State.Promise
 public import QuantumAlg.Core.Execution.Reindex
 public import QuantumAlg.Core.Base.Gate.Unitary.Reindex
 import all QuantumAlg.Core.Execution.State.Promise
+import all QuantumAlg.Core.Execution.State.UnitaryNeighborhood
 import all QuantumAlg.Core.Execution.Reindex
 
 /-!
@@ -27,12 +28,13 @@ noncomputable section
 
 variable {R S : Register}
 
-/-- Transport the same pure, mixed or dirty target to its placed basis. -/
+/-- Transport the same exact, approximate or dirty target to its placed basis. -/
 public def reindex (basis : R.Index ≃ S.Index) : StatePromise R → StatePromise S
   | .dirty => .dirty
   | .pure target => .pure (target.reindex basis)
   | .mixed target normalized =>
       .mixed (target.reindex basis) ((DensityOperator.reindex_mass target basis).trans normalized)
+  | .unitaryNeighborhood target => .unitaryNeighborhood (target.reindex basis)
 
 /-- Exact basis transport preserves and reflects the complete mass-weighted promise. -/
 public lemma statePromise_reindex_holds_iff (basis : R.Index ≃ S.Index)
@@ -40,6 +42,7 @@ public lemma statePromise_reindex_holds_iff (basis : R.Index ≃ S.Index)
     (promise.reindex basis).Holds (state.reindex basis) ↔ promise.Holds state := by
   cases promise with
   | dirty => rfl
+  | unitaryNeighborhood target => exact target.reindex_holds_iff basis state
   | pure target =>
       change (state.reindex basis).matrix =
           (state.reindex basis).mass • (DensityOperator.ofPure (target.reindex basis)).matrix ↔ _

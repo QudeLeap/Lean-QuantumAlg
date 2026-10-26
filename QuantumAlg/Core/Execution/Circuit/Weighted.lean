@@ -88,6 +88,7 @@ lemma eventDepth_costEval_eq_resourcePool {model : ExecutionModel}
         List.sum_ofFn, Function.comp_def]
   | workspace ctx key shape fresh body bodyIH => exact bodyIH path
   | embed placement body bodyIH => exact bodyIH path
+  | ownedLayoutView view body bodyIH => exact bodyIH path
   | parallelClassical join separate first second firstIH secondIH
   | parallelQuantum join separate first second firstIH secondIH =>
       simp only [eventDepth, DepthExpr.costEval_tensor, resourcePool, eventTrace,

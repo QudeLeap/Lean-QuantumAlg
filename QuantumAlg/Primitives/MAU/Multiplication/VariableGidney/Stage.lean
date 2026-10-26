@@ -6,7 +6,7 @@ Authors: QudeLeap Team
 
 module
 
-import all QuantumAlg.Primitives.MAU.Multiplication.Accumulate.Gidney.Gates
+import all QuantumAlg.Primitives.MAU.Multiplication.Accumulate.Gidney.Controlled
 import all QuantumAlg.Components.Encoded.BitGates.Controlled.Product
 import all QuantumAlg.Components.Encoded.BitGates.Controlled.Small
 
@@ -58,56 +58,19 @@ def stageOutput {width : Nat} (modulus : Fin (2 ^ width + 1)) (index : Fin width
   (state.1, if state.1.val.testBit index.val then
     Accumulate.Gidney.prefixOutput modulus (2 ^ index.val) width state.2 else state.2)
 
-private lemma inputBits_wire (width : Nat)
-    (position : Fin (BinaryLabelEncoding.finIdentity width).width) :
-    (BinaryLabelEncoding.finIdentityBit width position).wire = position := rfl
-
-/-- Every bit of the inner two-word MAC has its original physical position. -/
-private def bodyBits (width : Nat) :
-    Fin (Accumulate.Gidney.encoding width).width →
-      EncodedBit (Accumulate.Gidney.encoding width) :=
-  productBit (BinaryLabelEncoding.finIdentityBit width)
-    (BinaryLabelEncoding.finIdentityBit width)
-
-private lemma bodyBits_wire (width : Nat)
-    (position : Fin (Accumulate.Gidney.encoding width).width) :
-    (bodyBits width position).wire = position :=
-  productBit_wire (left := BinaryLabelEncoding.finIdentity width)
-    (right := BinaryLabelEncoding.finIdentity width)
-    (BinaryLabelEncoding.finIdentityBit width)
-    (BinaryLabelEncoding.finIdentityBit width) (fun _ => rfl) (fun _ => rfl) position
-
-/-- Actual controlled X/CNOT/Toffoli list on precisely the original three words. -/
+/-- Actual two-control BCBC word on precisely the original three words. -/
 def stageGates (width : Nat) (modulus : Fin (2 ^ width + 1)) (index : Fin width) :
     List (GateSpec
       (BinaryLabelEncoding.prod (BinaryLabelEncoding.finIdentity width)
         (Accumulate.Gidney.encoding width))) :=
-  if small : width ≤ 1 then
-    (Accumulate.Gidney.gates width modulus (2 ^ index.val)).map
-      (controlSmall (inputBit width index)
-        (by change width + width ≤ 2; omega))
-  else
-    controlRightList (BinaryLabelEncoding.finIdentityBit width) (bodyBits width)
-      (inputBits_wire width) (bodyBits_wire width)
-      (by
-        change 5 ≤ width + (width + width)
-        omega)
-      (inputBit width index)
-      (Accumulate.Gidney.gates width modulus (2 ^ index.val))
+  Accumulate.Gidney.ControlPushdown.twoGates width width index modulus (2 ^ index.val)
 
 /-- Both control branches preserve the whole first input and exact inner MAC action. -/
 lemma variableGidney_stageGates_step (width : Nat) (modulus : Fin (2 ^ width + 1))
     (index : Fin width) (state : Registers width) :
     stepList (stageGates width modulus index) state = stageOutput modulus index state := by
-  by_cases small : width ≤ 1
-  · simp only [stageGates, dif_pos small]
-    rw [controlSmallList_step, Accumulate.Gidney.gidneyAccumulateGates_step,
-      variableGidney_inputBit_get]
-    rfl
-  · simp only [stageGates, dif_neg small]
-    rw [controlRightList_step, Accumulate.Gidney.gidneyAccumulateGates_step,
-      variableGidney_inputBit_get]
-    rfl
+  exact Accumulate.Gidney.ControlPushdown.twoGates_step width width index modulus
+    (2 ^ index.val) state
 
 /-- Native circuit of the literal controlled list in the selected gate model. -/
 def stageProgram (width : Nat) (modulus : Fin (2 ^ width + 1)) (index : Fin width) :

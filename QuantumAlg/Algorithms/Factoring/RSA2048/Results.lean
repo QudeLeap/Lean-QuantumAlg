@@ -8,9 +8,10 @@ module
 
 public import QuantumAlg.Algorithms.Factoring.RSA2048
 public import QuantumAlg.Algorithms.Factoring.RSA.Results
-public import QuantumAlg.Algorithms.Factoring.RSA.Recycling.Program.KeyAverage
+public import QuantumAlg.Algorithms.Factoring.RSA.Measured.Program.KeyAverage
 public import QuantumAlg.Algorithms.Factoring.EkeraHastadStyle.KeyGeneration.Specification
-public import QuantumAlg.Algorithms.Factoring.EkeraHastadStyle.StoreMachine.Instances.Native.RSA2048.Parameters
+public import
+QuantumAlg.Algorithms.Factoring.EkeraHastadStyle.StoreMachine.Instances.Native.RSA2048.Parameters
 public import QuantumAlg.Core.Base.Accounting.ClassicalWeight
 public import QuantumAlg.Core.Base.Accounting.Weighted
 
@@ -18,19 +19,23 @@ import all QuantumAlg.Algorithms.Factoring.RSA2048
 import all
 QuantumAlg.Algorithms.Factoring.EkeraHastadStyle.StoreMachine.Instances.Native.RSA2048.Calibration
 import all QuantumAlg.Algorithms.Factoring.RSA.Results
-import all QuantumAlg.Algorithms.Factoring.RSA2048.Recycling.Contract
-import all QuantumAlg.Algorithms.Factoring.RSA2048.Recycling.Resources
-import all QuantumAlg.Algorithms.Factoring.RSA2048.Recycling.Space
-import all QuantumAlg.Algorithms.Factoring.RSA.Recycling.Program
-import all QuantumAlg.Algorithms.Factoring.RSA.Recycling.Program.Endpoint
-import all QuantumAlg.Algorithms.Factoring.RSA.Recycling.Program.Coordinates
-import all QuantumAlg.Algorithms.Factoring.RSA.Recycling.Program.Events
-import all QuantumAlg.Algorithms.Factoring.RSA.Recycling.Program.Space
-import all QuantumAlg.Algorithms.Factoring.RSA.Recycling.Program.KeyAverage
+import all QuantumAlg.Algorithms.Factoring.RSA2048.Measured.Contract
+import all QuantumAlg.Algorithms.Factoring.RSA2048.Measured.Success.Relational
+import all QuantumAlg.Algorithms.Factoring.RSA2048.Measured.Resources
+import all QuantumAlg.Algorithms.Factoring.RSA2048.Measured.Space
+import all QuantumAlg.Algorithms.Factoring.RSA2048.Measured.Bounds
+import all QuantumAlg.Algorithms.Factoring.RSA.Measured.Program
+import all QuantumAlg.Algorithms.Factoring.RSA.Measured.Program.Endpoint
+import all QuantumAlg.Algorithms.Factoring.RSA.Measured.Program.Coordinates
+import all QuantumAlg.Algorithms.Factoring.RSA.Measured.Program.Events
+import all QuantumAlg.Algorithms.Factoring.RSA.Measured.Program.Space
+import all QuantumAlg.Algorithms.Factoring.RSA.Measured.Program.KeyAverage
 import all QuantumAlg.Algorithms.Factoring.EkeraHastadStyle.KeyGeneration.Specification
-import all QuantumAlg.Algorithms.Factoring.EkeraHastadStyle.StoreMachine.Instances.Native.RSA2048.Parameters
-import all QuantumAlg.Algorithms.Factoring.EkeraHastadStyle.StoreMachine.Retry.Native.Selection.Probability
-import all QuantumAlg.Primitives.ShortDLP.CompiledMAU.Recycling.Context
+import all
+QuantumAlg.Algorithms.Factoring.EkeraHastadStyle.StoreMachine.Instances.Native.RSA2048.Parameters
+import all
+QuantumAlg.Algorithms.Factoring.EkeraHastadStyle.StoreMachine.Retry.Native.Selection.Probability
+import all QuantumAlg.Primitives.ShortDLP.CompiledMAU.Recycling.Source.Context
 import all QuantumAlg.Util.RSA.GeneratorOrder
 import all QuantumAlg.Core.Base.Accounting.Context
 import all QuantumAlg.Core.Execution.Trace
@@ -39,7 +44,7 @@ import Mathlib.Tactic.NormNum
 /-!
 # Same-run single-control RSA-2048 resources and ordered-key success
 
-The actual modulus-only algorithm executes seven batches and 112 measured
+The actual modulus-only algorithm executes four batches and 80 measured
 members on one recycled control and the original arithmetic bank. Its entire
 native event allowance includes preparation, paid packing, measured reset,
 reload, complete recovery and final selection. Each resource theorem applies
@@ -47,9 +52,9 @@ to every original exact-width key, including exceptional keys.
 
 The conditional complete contract and the original ordered-key average both
 observe this same new execution. Key-dependent arbitrary caller states and
-external references remain admitted. Averaging retains the per-key seventh
-failure power. The fixed seven-batch guarantee is distinct from the generic
-one-percent calibration, whose count is ten.
+external references remain admitted. Averaging retains the per-key fourth
+failure power. The fixed four-batch guarantee uses twenty members per batch; the generic
+calibration retains its original sixteen-member configuration.
 
 The reduction is [EH17, source.tex:878-966], and sampling and reconstruction
 are [E23, arxiv-v5.tex:218-299,329-355]. Measured Fourier reuse is
@@ -62,6 +67,8 @@ namespace QuantumAlg.Factoring.RSA2048
 open EkeraHastadStyle EkeraHastadStyle.Canonical
 
 noncomputable section
+
+attribute [local instance] RSA.Configuration.rsa2048
 
 variable {environment :
   (ExecutionModel.quantum AlgorithmGate.model .empty BitWord.model).Environment}
@@ -88,12 +95,12 @@ public lemma source_initialized {N : Nat} (key : NativeRSA2048.FixedKeyModel N)
       original.localState := by
   trivial
 
-/-- The actual seven-batch candidate receives only the original public-modulus input. -/
+/-- The actual four-batch candidate receives only the original public-modulus input. -/
 @[expose] public def algorithm {N : Nat} (specification : Canonical.Input N) :
     Algorithm (.quantum AlgorithmGate.model .empty BitWord.model) base
-      (RSA.Recycling.Program.outputContext base noQuantum N NativeRSA2048.rounds)
+      (RSA.Measured.Program.outputContext base noQuantum N RSA.Configuration.rsa2048Batches)
       (LatticeBatchRecoveryOutput.OutputShape N) :=
-  RSA.algorithmAtCount base noQuantum specification NativeRSA2048.rounds
+  RSA.algorithmAtCount base noQuantum specification RSA.Configuration.rsa2048Batches
 
 /-- This named candidate satisfies the independent complete fixed-width problem. -/
 public lemma algorithm_solves {N : Nat} (specification : Canonical.Input N) :
@@ -101,35 +108,37 @@ public lemma algorithm_solves {N : Nat} (specification : Canonical.Input N) :
       (problem base noQuantum N) :=
   complete_correct base noQuantum specification
 
-/-- The original conditional seven-batch floor is itself at least ninety-nine percent. -/
+/-- The original conditional four-batch floor is itself at least ninety-nine percent. -/
 public lemma problem_successLB_ge_99
     (environment : (ExecutionModel.quantum AlgorithmGate.model .empty BitWord.model).Environment)
     {N : Nat}
       (model : NativeRSA2048.FixedKeyModel N) :
     ENNReal.ofReal ((99 : Real) / 100) ≤ ((problem base noQuantum N).successLB environment
       (factorWitness base noQuantum model)).value :=
-  Recycling.model_successFloor_ge_99 base noQuantum environment model
+  le_refl _
 
 /-- Independent simultaneous space includes one recycled control and all retained classical data. -/
 @[expose] public def additionalSpace : SpacePool .quantum
-  | .classicalBits => 1_053_148_338_921
-  | .quantumSystems dimension => if dimension = 2 then 4_097 else 0
+  | .classicalBits => 1_053_148_158_593
+  | .quantumSystems dimension => if dimension = 2 then 4_100 else 0
 
 /-- The resident budget exposes the fixed new classical allowance. -/
 public lemma problem_resident_classicalBits {N : Nat} (model : NativeRSA2048.FixedKeyModel N) :
     (problem base noQuantum N).resources.resident .classicalBits =
-      base.residentSpace .classicalBits + 1_053_148_338_921 := by
+      base.residentSpace .classicalBits + 1_053_148_158_593 := by
   exact congrArg (fun bits => base.residentSpace .classicalBits + bits)
-    ((RSA.Recycling.Program.rsaRecyclingParent_spaceLimit_classicalBits N
-      NativeRSA2048.rounds).trans (Recycling.model_classicalBitBound_eq model.widthModel))
+    ((RSA.Measured.Program.rsaMeasuredParent_spaceLimit_classicalBits N
+      RSA.Configuration.rsa2048Batches).trans (Measured.rsaMeasured2048_model_classicalBitBound_eq
+        model.widthModel))
 
 /-- Auxiliary storage keeps its separate caller contribution and the same actual allowance. -/
 public lemma problem_auxiliary_classicalBits {N : Nat} (model : NativeRSA2048.FixedKeyModel N) :
     (problem base noQuantum N).resources.auxiliary .classicalBits =
-      base.auxiliarySpace .classicalBits + 1_053_148_338_921 := by
+      base.auxiliarySpace .classicalBits + 1_053_148_158_593 := by
   exact congrArg (fun bits => base.auxiliarySpace .classicalBits + bits)
-    ((RSA.Recycling.Program.rsaRecyclingParent_spaceLimit_classicalBits N
-      NativeRSA2048.rounds).trans (Recycling.model_classicalBitBound_eq model.widthModel))
+    ((RSA.Measured.Program.rsaMeasuredParent_spaceLimit_classicalBits N
+      RSA.Configuration.rsa2048Batches).trans (Measured.rsaMeasured2048_model_classicalBitBound_eq
+        model.widthModel))
 
 include noQuantum in
 private lemma caller_qubits_zero : base.residentSpace (.quantumSystems 2) = 0 := by
@@ -137,50 +146,54 @@ private lemma caller_qubits_zero : base.residentSpace (.quantumSystems 2) = 0 :=
   simp only [QuantumLayout.dimensionCount, QuantumLayout.dimensions, RuntimeCtx.systemCount,
     noQuantum, List.length_nil, List.ofFn_zero, List.count_nil]
 
-/-- With the required quantum-empty caller, the independent resident allowance is 4,097 qubits. -/
+/-- With the required quantum-empty caller, the independent resident allowance is 4,100 qubits. -/
 public lemma problem_resident_qubits {N : Nat} (model : NativeRSA2048.FixedKeyModel N) :
-    (problem base noQuantum N).resources.resident (.quantumSystems 2) = 4_097 := by
-  have scalar : RSA.Recycling.Program.spaceLimit N NativeRSA2048.rounds
-      (.quantumSystems 2) = 4_097 :=
-    (RSA.Recycling.Program.rsaRecyclingParent_spaceLimit_qubits N NativeRSA2048.rounds).trans
-      (Recycling.model_qubitBound_eq model.widthModel)
+    (problem base noQuantum N).resources.resident (.quantumSystems 2) = 4_100 := by
+  have scalar : RSA.Measured.Program.spaceLimit N RSA.Configuration.rsa2048Batches
+      (.quantumSystems 2) = 4_100 :=
+    (RSA.Measured.Program.rsaMeasuredParent_spaceLimit_qubits N
+      RSA.Configuration.rsa2048Batches).trans
+      (Measured.rsaMeasured2048_model_qubitBound_eq model.widthModel)
   change base.residentSpace (.quantumSystems 2) +
-    RSA.Recycling.Program.spaceLimit N NativeRSA2048.rounds (.quantumSystems 2) = _
+    RSA.Measured.Program.spaceLimit N RSA.Configuration.rsa2048Batches (.quantumSystems 2) = _
   rw [scalar, caller_qubits_zero base noQuantum, Nat.zero_add]
 
 /-- The auxiliary quantum budget retains its own caller contribution. -/
 public lemma problem_auxiliary_qubits {N : Nat} (model : NativeRSA2048.FixedKeyModel N) :
     (problem base noQuantum N).resources.auxiliary (.quantumSystems 2) =
-      base.auxiliarySpace (.quantumSystems 2) + 4_097 := by
+      base.auxiliarySpace (.quantumSystems 2) + 4_100 := by
   exact congrArg (fun qubits => base.auxiliarySpace (.quantumSystems 2) + qubits)
-    ((RSA.Recycling.Program.rsaRecyclingParent_spaceLimit_qubits N NativeRSA2048.rounds).trans
-      (Recycling.model_qubitBound_eq model.widthModel))
+    ((RSA.Measured.Program.rsaMeasuredParent_spaceLimit_qubits N
+      RSA.Configuration.rsa2048Batches).trans
+      (Measured.rsaMeasured2048_model_qubitBound_eq model.widthModel))
 
 /-- The independent time formula is bounded by the fixed complete quantum-time ceiling. -/
 public lemma problem_quantumTimeLimit {N : Nat} (model : NativeRSA2048.FixedKeyModel N) :
-    (problem base noQuantum N).quantumTimeLimit ≤ 117_480_458_204_112_193 :=
-  Recycling.model_quantumTimeLimit_le model.widthModel
+    (problem base noQuantum N).quantumTimeLimit ≤ 110_026_640_794_801 :=
+  (Measured.rsaMeasured2048_model_quantumTimeLimit_eq model.widthModel).le
 
 /-- The total native-event allowance counts an independent parameter pool, not an actual trace. -/
 public def eventCountBound (N : Nat) : Nat :=
-  (RSA.Recycling.Program.eventBudget N NativeRSA2048.rounds).card
+  (RSA.Measured.Program.eventBudget N RSA.Configuration.rsa2048Batches).card
 
 /-- Every complete actual path is bounded by that independent native-event cardinality. -/
-public lemma algorithm_eventCount_le {N : Nat} (_model : NativeRSA2048.FixedWidthModel N)
+public lemma algorithm_eventCount_le {N : Nat} (model : NativeRSA2048.FixedWidthModel N)
     (specification : Canonical.Input N)
     (path : (algorithm base noQuantum specification).run.code.Path) :
     ((algorithm base noQuantum specification).run.code.eventTrace path).length ≤
       eventCountBound N := by
   have bounded := Multiset.card_le_card
-    (RSA.Recycling.Program.rsaRecyclingParent_run_pool_le
-      base noQuantum N specification NativeRSA2048.rounds path)
+    (RSA.Measured.Program.rsaMeasuredParent_run_pool_le
+      base noQuantum N specification
+        (Measured.fixedWidth_large model) (Measured.fixedWidth_odd model)
+        RSA.Configuration.rsa2048Batches path)
   exact bounded
 
 /-- Fixed ceilings for all native gate coordinates of the new complete program. -/
 @[expose] public def gateCountBound : AlgorithmGate.Coordinate → Nat
-  | .toffoli => 117_064_166_104_596_480
-  | .cnot => 416_291_951_738_880
-  | .singleQubit => 148_235_585
+  | .toffoli => 19_254_517_596_160
+  | .cnot => 74_265_936_855_040
+  | .singleQubit => 16_506_186_343_601
 
 /-- The independent fixed problem specializes the same generic native resource allowances. -/
 public lemma problem_gateCountLimit {N : Nat} (model : NativeRSA2048.FixedWidthModel N)
@@ -188,7 +201,7 @@ public lemma problem_gateCountLimit {N : Nat} (model : NativeRSA2048.FixedWidthM
     ResourcePool.count (model := .quantum AlgorithmGate.model .empty BitWord.model)
       (.gate coordinate) (problem base noQuantum N).resources.events ≤
         gateCountBound coordinate :=
-  Recycling.model_gateCountLimit_le model coordinate
+  (Measured.rsaMeasured2048_model_gateCountLimit_eq model coordinate).le
 
 /-- Every native gate coordinate belongs to the same actual complete path. -/
 public lemma algorithm_gateCount_le {N : Nat} (model : NativeRSA2048.FixedWidthModel N)
@@ -198,14 +211,24 @@ public lemma algorithm_gateCount_le {N : Nat} (model : NativeRSA2048.FixedWidthM
     ResourcePool.count (model := .quantum AlgorithmGate.model .empty BitWord.model)
       (.gate coordinate) ((algorithm base noQuantum specification).run.code.resourcePool path) ≤
         gateCountBound coordinate :=
-  Recycling.run_gateCount_le base noQuantum model specification path coordinate
+  Measured.rsaMeasured2048_run_gateCount_le base noQuantum model specification path coordinate
+
+/-- Physical arithmetic/control/full-bank readouts keep their separate actual native coordinate. -/
+public lemma algorithm_measurementCount_le {N : Nat} (model : NativeRSA2048.FixedWidthModel N)
+    (specification : Canonical.Input N)
+    (path : (algorithm base noQuantum specification).run.code.Path) :
+    ResourcePool.count (model := .quantum AlgorithmGate.model .empty BitWord.model)
+      (.measurement (2 : ℕ+))
+      ((algorithm base noQuantum specification).run.code.resourcePool path) ≤
+        2_750_117_806_640 :=
+  Measured.rsaMeasured2048_run_measurementCount_le base noQuantum model specification path
 
 /-- Quantum time covers preparation and every member, reset and reload of the complete run. -/
 public lemma algorithm_quantumTime_le {N : Nat} (model : NativeRSA2048.FixedWidthModel N)
     (specification : Canonical.Input N)
     (path : (algorithm base noQuantum specification).run.code.Path) :
-    (algorithm base noQuantum specification).quantumTime path ≤ 117_480_458_204_112_193 :=
-  Recycling.run_quantumTime_le base noQuantum model specification path
+    (algorithm base noQuantum specification).quantumTime path ≤ 110_026_640_794_801 :=
+  Measured.rsaMeasured2048_run_quantumTime_le base noQuantum model specification path
 
 /-- Literal classical operations retain their independent fixed ceiling on the same path. -/
 public lemma algorithm_classicalOperation_le {N : Nat} (model : NativeRSA2048.FixedWidthModel N)
@@ -213,8 +236,8 @@ public lemma algorithm_classicalOperation_le {N : Nat} (model : NativeRSA2048.Fi
     (path : (algorithm base noQuantum specification).run.code.Path) :
     ResourcePool.weightedCount Resource.Event.classicalOperationWeight
       ((algorithm base noQuantum specification).run.code.resourcePool path) ≤
-        15_343_042_058_108_937_824 :=
-  Recycling.run_classicalOperation_le base noQuantum model specification path
+        13_881_799_957_336_389_973 :=
+  Measured.rsaMeasured2048_run_classicalOperation_le base noQuantum model specification path
 
 /-- Independent complete space, quantum-time, native-event and classical-operation allowances. -/
 @[expose] public def ResourceBounds {N : Nat} (specification : Canonical.Input N) : Prop :=
@@ -223,23 +246,24 @@ public lemma algorithm_classicalOperation_le {N : Nat} (model : NativeRSA2048.Fi
         base.residentSpace + additionalSpace ∧
     (algorithm base noQuantum specification).run.code.peakAuxiliarySpace path ≤
         base.auxiliarySpace + additionalSpace ∧
-    (algorithm base noQuantum specification).quantumTime path ≤ 117_480_458_204_112_193 ∧
+    (algorithm base noQuantum specification).quantumTime path ≤ 110_026_640_794_801 ∧
     ((algorithm base noQuantum specification).run.code.eventTrace path).length ≤
         eventCountBound N ∧
     ResourcePool.weightedCount Resource.Event.classicalOperationWeight
       ((algorithm base noQuantum specification).run.code.resourcePool path) ≤
-        15_343_042_058_108_937_824
+        13_881_799_957_336_389_973
 
 /-- Every original exact-width key, including exceptional keys, satisfies the same path bounds. -/
 public lemma algorithm_resourceBounds {N : Nat} (model : NativeRSA2048.FixedWidthModel N)
     (specification : Canonical.Input N) : ResourceBounds base noQuantum specification := by
   intro path
-  have space : RSA.Recycling.Program.spaceLimit N NativeRSA2048.rounds = additionalSpace :=
-    Recycling.model_additionalSpace_eq model
-  have resident := RSA.Recycling.Program.rsaRecyclingParent_run_resident_le
-    base noQuantum N specification NativeRSA2048.rounds path
-  have auxiliary := RSA.Recycling.Program.rsaRecyclingParent_run_auxiliary_le
-    base noQuantum N specification NativeRSA2048.rounds path
+  have space : RSA.Measured.Program.spaceLimit N RSA.Configuration.rsa2048Batches =
+    additionalSpace :=
+    Measured.rsaMeasured2048_model_additionalSpace_eq model
+  have resident := RSA.Measured.Program.rsaMeasuredParent_run_resident_le
+    base noQuantum N specification RSA.Configuration.rsa2048Batches path
+  have auxiliary := RSA.Measured.Program.rsaMeasuredParent_run_auxiliary_le
+    base noQuantum N specification RSA.Configuration.rsa2048Batches path
   rw [space] at resident auxiliary
   exact ⟨resident, auxiliary, algorithm_quantumTime_le base noQuantum model specification path,
     algorithm_eventCount_le base noQuantum model specification path,
@@ -247,19 +271,19 @@ public lemma algorithm_resourceBounds {N : Nat} (model : NativeRSA2048.FixedWidt
 
 /-- Fixed independent ceilings retain the caller's resident and auxiliary classical capacities. -/
 @[expose] public def coordinateLimits : RSA.CoordinateLimits where
-  qubits := 4_097
-  toffoli := 117_064_166_104_596_480
-  cnot := 416_291_951_738_880
-  singleQubit := 148_235_585
-  quantumTime := 117_480_458_204_112_193
-  residentClassicalBits := base.residentSpace .classicalBits + 1_053_148_338_921
-  auxiliaryClassicalBits := base.auxiliarySpace .classicalBits + 1_053_148_338_921
-  classicalOperations := 15_343_042_058_108_937_824
+  qubits := 4_100
+  toffoli := 19_254_517_596_160
+  cnot := 74_265_936_855_040
+  singleQubit := 16_506_186_343_601
+  quantumTime := 110_026_640_794_801
+  residentClassicalBits := base.residentSpace .classicalBits + 1_053_148_158_593
+  auxiliaryClassicalBits := base.auxiliarySpace .classicalBits + 1_053_148_158_593
+  classicalOperations := 13_881_799_957_336_389_973
 
-/-- The shared arbitrary-count observation contract specializes to the fixed seven batches. -/
+/-- The shared arbitrary-count observation contract specializes to the fixed four batches. -/
 public abbrev SevenCoordinateBounds {N : Nat} (specification : Canonical.Input N)
     (path : (algorithm base noQuantum specification).run.code.Path) : Prop :=
-  RSA.SevenCoordinateBoundsAtCount base noQuantum specification NativeRSA2048.rounds
+  RSA.SevenCoordinateBoundsAtCount base noQuantum specification RSA.Configuration.rsa2048Batches
     (coordinateLimits base) path
 
 /-- All seven coordinates constrain one actual path for every original fixed-width key. -/
@@ -268,15 +292,18 @@ public lemma algorithm_sevenCoordinates {N : Nat}
     (path : (algorithm base noQuantum specification).run.code.Path) :
     SevenCoordinateBounds base noQuantum specification path := by
   refine ⟨?_, ?_, ?_, ?_, ?_, ⟨?_, ?_⟩, ?_⟩
-  · have actual := Recycling.run_resident_qubits_le base noQuantum model specification path
+  · have actual := Measured.rsaMeasured2048_run_resident_qubits_le
+      base noQuantum model specification path
     rw [caller_qubits_zero base noQuantum, Nat.zero_add] at actual
     exact actual
   · exact algorithm_gateCount_le base noQuantum model specification path .toffoli
   · exact algorithm_gateCount_le base noQuantum model specification path .cnot
   · exact algorithm_gateCount_le base noQuantum model specification path .singleQubit
   · exact algorithm_quantumTime_le base noQuantum model specification path
-  · exact Recycling.run_resident_classicalBits_le base noQuantum model specification path
-  · exact Recycling.run_auxiliary_classicalBits_le base noQuantum model specification path
+  · exact Measured.rsaMeasured2048_run_resident_classicalBits_le
+      base noQuantum model specification path
+  · exact Measured.rsaMeasured2048_run_auxiliary_classicalBits_le
+      base noQuantum model specification path
   · exact algorithm_classicalOperation_le base noQuantum model specification path
 
 /-- With an empty caller, both complete classical capacities fit in 132 decimal gigabytes. -/
@@ -296,29 +323,44 @@ public lemma algorithm_classicalMemory_emptyBase_le_132GB {N : Nat}
   constructor
   · calc
       _ ≤ (RuntimeCtx.empty : RuntimeCtx .quantum).residentSpace .classicalBits +
-          1_053_148_338_921 := resident
+          1_053_148_158_593 := resident
       _ ≤ 132 * 8 * 10 ^ 9 := by norm_num [RuntimeCtx.residentSpace_empty]
   · calc
       _ ≤ (RuntimeCtx.empty : RuntimeCtx .quantum).auxiliarySpace .classicalBits +
-          1_053_148_338_921 := auxiliary
+          1_053_148_158_593 := auxiliary
       _ ≤ 132 * 8 * 10 ^ 9 := by norm_num [RuntimeCtx.auxiliarySpace_empty]
 
-/-- Original ordered keys are followed by the actual new seven-batch run at each public modulus. -/
+/-- Original ordered keys are followed by the actual new four-batch run at each public modulus. -/
 public def keygenOutput {Reference : Register}
     (inputs : QuantumAlg.RSA.RSAKeyPairBits NativeRSA2048.primeBits →
       Execution.OracleInput ClassicalOracleModel.empty base Reference) :
     PMF (Nat × Nat × Option Nat) :=
-  RSA.Recycling.Program.KeyAverage.keygenOutputDistribution (environment := environment)
+  RSA.Measured.Program.KeyAverage.keygenOutputDistribution (environment := environment)
     base noQuantum NativeRSA2048.primeBits
-    NativeRSA2048.keygenNonempty NativeRSA2048.rounds inputs
+    NativeRSA2048.keygenNonempty RSA.Configuration.rsa2048Batches inputs
 
 private lemma keygenOutput_eq {Reference : Register}
     (inputs : QuantumAlg.RSA.RSAKeyPairBits NativeRSA2048.primeBits →
       Execution.OracleInput ClassicalOracleModel.empty base Reference) :
     keygenOutput (environment := environment) base noQuantum inputs =
-      RSA.Recycling.Program.KeyAverage.keygenOutputDistribution (environment := environment)
+      RSA.Measured.Program.KeyAverage.keygenOutputDistribution (environment := environment)
         base noQuantum
-        NativeRSA2048.primeBits NativeRSA2048.keygenNonempty NativeRSA2048.rounds inputs := rfl
+        NativeRSA2048.primeBits NativeRSA2048.keygenNonempty RSA.Configuration.rsa2048Batches
+          inputs := rfl
+
+private lemma keygenOutput_successMass {Reference : Register}
+    (inputs : QuantumAlg.RSA.RSAKeyPairBits NativeRSA2048.primeBits →
+      Execution.OracleInput ClassicalOracleModel.empty base Reference) :
+    (keygenOutput (environment := environment) base noQuantum inputs).toOuterMeasure
+        RSA.Measured.Program.KeyAverage.successEvent =
+      RSA.Measured.Program.KeyAverage.successMass (environment := environment)
+        base noQuantum NativeRSA2048.primeBits NativeRSA2048.keygenNonempty
+        RSA.Configuration.rsa2048Batches inputs := by
+  unfold RSA.Measured.Program.KeyAverage.successMass
+  exact congrArg
+    (fun distribution : PMF (Nat × Nat × Option Nat) =>
+      distribution.toOuterMeasure RSA.Measured.Program.KeyAverage.successEvent)
+    (keygenOutput_eq (environment := environment) base noQuantum inputs)
 
 /-- The actual original-key average reaches ninety-nine percent for every input/reference family. -/
 public lemma success_ge_99 {Reference : Register}
@@ -326,28 +368,22 @@ public lemma success_ge_99 {Reference : Register}
       Execution.OracleInput ClassicalOracleModel.empty base Reference) :
     ENNReal.ofReal ((99 : Real) / 100) ≤
       (keygenOutput (environment := environment) base noQuantum inputs).toOuterMeasure
-        RSA.Recycling.Program.KeyAverage.successEvent := by
-  have massEq (count : Nat) :
-      RSA.Recycling.Program.KeyAverage.successMass (environment := environment)
-        base noQuantum NativeRSA2048.primeBits
-          NativeRSA2048.keygenNonempty count inputs =
-        (RSA.Recycling.Program.KeyAverage.keygenOutputDistribution (environment := environment)
-          base noQuantum
-          NativeRSA2048.primeBits NativeRSA2048.keygenNonempty count inputs).toOuterMeasure
-            RSA.Recycling.Program.KeyAverage.successEvent := by as_aux_lemma => rfl
-  have effective : QuantumAlg.RSA.GeneratorOrder.effectiveCutoffBits ≤
-      NativeRSA2048.primeBits := by
-    norm_num [QuantumAlg.RSA.GeneratorOrder.effectiveCutoffBits, NativeRSA2048.primeBits]
-  have averaged := RSA.Recycling.Program.KeyAverage.success_ge_rounds (environment := environment)
-    base noQuantum NativeRSA2048.primeBits NativeRSA2048.keygenNonempty
-      NativeRSA2048.rounds inputs effective
-  have calibrated := NativeRSA2048.Calibration.combinedSuccess_seven_ge_99
-  have bitsEq : (1024 : Nat) = NativeRSA2048.primeBits := rfl
-  have roundsEq : (7 : Nat) = NativeRSA2048.rounds := rfl
-  rw [bitsEq, roundsEq] at calibrated
-  have lower := calibrated.trans averaged
-  rw [keygenOutput_eq, ← massEq]
-  exact lower
+        RSA.Measured.Program.KeyAverage.successEvent := by
+  rw [keygenOutput_successMass]
+  exact Measured.rsaMeasured2048_keygen_twentyByFour_success_ge_99 (environment := environment)
+    base noQuantum NativeRSA2048.keygenNonempty inputs
+
+/-- Failure in the same original ordered-key average is strictly below one percent. -/
+public lemma failure_lt_onePercent {Reference : Register}
+    (inputs : QuantumAlg.RSA.RSAKeyPairBits NativeRSA2048.primeBits →
+      Execution.OracleInput ClassicalOracleModel.empty base Reference) :
+    1 - (keygenOutput (environment := environment) base noQuantum inputs).toOuterMeasure
+        RSA.Measured.Program.KeyAverage.successEvent <
+      ENNReal.ofReal ((1 : Real) / 100) := by
+  rw [keygenOutput_successMass]
+  exact Measured.rsaMeasured2048_keygen_twentyByFour_failure_lt_onePercent
+    (environment := environment)
+    base noQuantum NativeRSA2048.keygenNonempty inputs
 
 /-- The complete fixed-width key-average contract admits every normalized input/reference family. -/
 @[expose] public def KeyGenerationSuccess : Prop :=
@@ -356,9 +392,9 @@ public lemma success_ge_99 {Reference : Register}
       Execution.OracleInput ClassicalOracleModel.empty base Reference),
       ENNReal.ofReal ((99 : Real) / 100) ≤
         (keygenOutput (environment := environment) base noQuantum inputs).toOuterMeasure
-          RSA.Recycling.Program.KeyAverage.successEvent
+          RSA.Measured.Program.KeyAverage.successEvent
 
-/-- Fixed seven-batch success belongs to the actual new run throughout the original key average. -/
+/-- Fixed four-batch success belongs to the actual new run throughout the original key average. -/
 public lemma keyGenerationSuccess : KeyGenerationSuccess (environment := environment)
   base noQuantum :=
   fun _ inputs => success_ge_99 (environment := environment) base noQuantum inputs
@@ -371,7 +407,7 @@ public lemma keygenOutput_some_sound {Reference : Register}
     (member : (p, q, some factor) ∈ (keygenOutput (environment := environment)
       base noQuantum inputs).support) :
     factor = p ∨ factor = q := by
-  rw [keygenOutput, RSA.Recycling.Program.KeyAverage.keygenOutputDistribution,
+  rw [keygenOutput, RSA.Measured.Program.KeyAverage.keygenOutputDistribution,
     PMF.mem_support_bind_iff] at member
   rcases member with ⟨pair, _pairMember, outputMember⟩
   rw [PMF.mem_support_map_iff] at outputMember
@@ -388,8 +424,9 @@ public lemma keygenOutput_some_sound {Reference : Register}
   | optionNone => cases factorEq
   | optionSome word =>
       have valueEq : word.toNat = factor := Option.some.inj factorEq
-      have sound := RSA.Recycling.Program.rsaRecyclingParent_run_some_sound
-        base noQuantum (inputOfKeyPair pair) NativeRSA2048.rounds (inputs pair) word outputMember
+      have sound := RSA.Measured.Program.rsaMeasuredParent_run_some_sound
+        base noQuantum (inputOfKeyPair pair) RSA.Configuration.rsa2048Batches (inputs pair) word
+          outputMember
       have declared := (semiprimeOfKeyPair pair).nontrivial_factor_eq_declared
         sound.1 sound.2.1 sound.2.2
       rw [valueEq] at declared

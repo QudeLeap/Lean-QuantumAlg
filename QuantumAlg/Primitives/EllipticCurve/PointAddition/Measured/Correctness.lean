@@ -10,7 +10,7 @@ import all QuantumAlg.Core.Execution.Context.Embedding.Framing
 import all QuantumAlg.Primitives.EllipticCurve.PointAddition.Measured.Domain
 import all QuantumAlg.Primitives.EllipticCurve.PointAddition.Measured.Runtime
 import all QuantumAlg.Primitives.MeasuredUncompute.InPlace.Controlled.Correctness
-import all QuantumAlg.Primitives.EllipticCurve.PointAddition.InPlace.Mathematics
+import all QuantumAlg.Primitives.EllipticCurve.PointAddition.Measured.Field.Correctness
 import all QuantumAlg.Util.Nat.FixedWidth.Modular.Word.Equiv
 import all QuantumAlg.Core.Execution.Context.Embedding.Sequence
 import Mathlib.Data.Nat.Size
@@ -1789,6 +1789,24 @@ private lemma exchangeControlsStep_both_false (width : Nat) (state : Raw width)
     · exact clean.trans inactive.symm
   · exact inactive.trans clean.symm
 
+private def beforeMultiplicationStep {p : Nat} {E : PrimeFieldShortWeierstrass p}
+    [Fact p.Prime] (Q : AffinePoint E) : Raw p.size → Raw p.size :=
+  exchangeControlsStep p.size ∘ selectNormalStep p.size ∘
+    (squareCopyStep p.size ∘ squareStep p ∘ squareCopyStep p.size) ∘
+      offsetStep p .supplied .x (constantWord (3 * Q.x))
+
+private lemma beforeMultiplication_realizes {p : Nat} {E : PrimeFieldShortWeierstrass p}
+    [Fact p.Prime] (Q : AffinePoint E) :
+    UnitaryCircuit.Realizes (encoding p.size) (beforeMultiplication Q) environment.quantum
+      (beforeMultiplicationStep Q) :=
+  nativeList_append_realizes _ _ _ _
+    (nativeList_append_realizes _ _ _ _
+      (nativeList_append_realizes _ _ _ _
+        (offset_realizes p .supplied .x (constantWord (3 * Q.x)))
+        (subtractSquare_realizes p))
+      (selectNormal_realizes p.size))
+    (exchangeControls_realizes p.size)
+
 /-- Every native middle-stage gate fixes the complete inactive input frame. -/
 private lemma beforeMultiplication_inactive {p : Nat}
     {E : PrimeFieldShortWeierstrass p} [Fact p.Prime]
@@ -1797,16 +1815,10 @@ private lemma beforeMultiplication_inactive {p : Nat}
     ((beforeMultiplication Q).binaryMatrix environment.quantum).apply
       (NormalizedVector.ket ((encoding p.size).encode state)) =
       NormalizedVector.ket ((encoding p.size).encode state) := by
-  have realized := nativeList_append_realizes (environment := environment) _ _ _ _
-    (nativeList_append_realizes _ _ _ _
-      (nativeList_append_realizes _ _ _ _
-        (offset_realizes p .supplied .x (constantWord (3 * Q.x)))
-        (subtractSquare_realizes p))
-      (selectNormal_realizes p.size))
-    (exchangeControls_realizes p.size)
+  have realized := beforeMultiplication_realizes (environment := environment) Q
   have actual := nativeRealizes_ket (environment := environment) _ _ realized state
   have copied : (squareCopyStep p.size state).1.2 = false := inactive
-  simpa only [beforeMultiplication, beforeMultiplicationGates, Function.comp_apply,
+  simpa only [beforeMultiplicationStep, Function.comp_apply,
     offsetStep_inactive p .x _ state inactive,
     squareStep_inactive p _ copied, squareCopyStep_involutive,
     selectNormalStep_inactive p.size state inactive,
@@ -2559,19 +2571,18 @@ private lemma beforeMultiplication_fieldWords {p : Nat} {E : PrimeFieldShortWeie
       NormalizedVector.ket ((encoding p.size).encode
         (preparedRaw p (decide (x + 3 * Q.x - y ^ 2 ≠ 0)) true
           (fieldWord (x + 3 * Q.x - y ^ 2)) (fieldWord y))) := by
-  simp only [beforeMultiplication, beforeMultiplicationGates,
-    nativeList_binary_append, binary_apply_mul]
-  erw [nativeRealizes_ket (environment := environment) _ _
-    (offset_realizes p .supplied .x (constantWord (3 * Q.x)))]
-  rw [offsetStep_prepared_x, modularOutput_fieldWord]
-  erw [subtractSquare_prepared (environment := environment) p false
-    (fieldWord (x + 3 * Q.x)) (fieldWord y)
-    (fieldWord (x + 3 * Q.x - y ^ 2)) (ZMod.val_lt _)
-    (square_subtraction_residue (x + 3 * Q.x) y)]
-  erw [nativeRealizes_ket (environment := environment) _ _ (selectNormal_realizes p.size)]
-  rw [selectNormalStep_fieldWords]
-  erw [nativeRealizes_ket (environment := environment) _ _ (exchangeControls_realizes p.size)]
-  rw [exchangeControlsStep_prepared]
+  have actual := nativeRealizes_ket (environment := environment) _ _
+    (beforeMultiplication_realizes Q)
+    (preparedRaw p true false (fieldWord x) (fieldWord y))
+  apply actual.trans
+  apply congrArg (fun state : Raw p.size =>
+    NormalizedVector.ket (R := Qubits (encoding p.size).width) ((encoding p.size).encode state))
+  dsimp only [beforeMultiplicationStep, Function.comp_apply]
+  rw [offsetStep_prepared_x, modularOutput_fieldWord,
+    squareStep_copied_prepared p false (fieldWord (x + 3 * Q.x)) (fieldWord y)
+      (fieldWord (x + 3 * Q.x - y ^ 2)) (ZMod.val_lt _)
+      (square_subtraction_residue (x + 3 * Q.x) y),
+    squareCopyStep_involutive, selectNormalStep_fieldWords, exchangeControlsStep_prepared]
   simp only [Bool.true_and, Bool.false_xor]
 
 private lemma afterMultiplication_fieldWords {p : Nat} (E : PrimeFieldShortWeierstrass p)
@@ -3242,147 +3253,6 @@ lemma body_density {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
       E Q)
 
 variable {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
-
-/-- The original active point exclusions imply the first denominator is nonzero. -/
-lemma firstDifference_ne_zero (P Q : AffinePoint E)
-    (allowed : affineAllowed true P Q) : firstDifference P.x Q.x ≠ 0 := by
-  obtain ⟨different, inverseDifferent⟩ := allowed rfl
-  exact sub_ne_zero.mpr (genericAddDomain_of_ne_of_ne_negate E P Q different inverseDifferent)
-
-/-- The actual first quotient is the independent affine secant slope. -/
-lemma slope_eq_generic (P Q : AffinePoint E) (domain : GenericAddDomain P Q) :
-    slope P.x P.y Q.x Q.y = genericAddSlope E P Q := by
-  rw [genericAddSlope_eq_secant_quotient E P Q domain]
-  rfl
-
-/-- The second multiplier is zero exactly when the result shares the fixed x coordinate. -/
-lemma secondDifference_eq (P Q : AffinePoint E) (domain : GenericAddDomain P Q) :
-    secondDifference P.x P.y Q.x Q.y = Q.x - genericAddX E P Q := by
-  have known := GenericPointAddition.InPlace.PointSemantics.secondDenominator_true_eq E P Q domain
-  rw [GenericPointAddition.InPlace.Semantics.secondDenominator, if_pos rfl,
-    GenericPointAddition.InPlace.PointSemantics.selectedSlope_true_eq_genericAddSlope
-      E P Q domain] at known
-  rw [secondDifference, slope_eq_generic E P Q domain, firstDifference]
-  linear_combination known
-
-private lemma result_group (P Q : AffinePoint E) (domain : GenericAddDomain P Q) :
-    P.toMathlib + Q.toMathlib = (genericAddPoint E P Q domain).toMathlib :=
-  genericAdd_group_law_mathlib E P Q domain
-
-private lemma result_eq_negate (P Q : AffinePoint E) (domain : GenericAddDomain P Q)
-    (sameX : (genericAddPoint E P Q domain).x = Q.x) :
-    genericAddPoint E P Q domain = AffinePoint.negate Q := by
-  rcases (WeierstrassCurve.Affine.Point.X_eq_iff
-      (W := E.toWeierstrassCurve.toAffine)
-      (h₁ := (genericAddPoint E P Q domain).nonsingular) (h₂ := Q.nonsingular)).mp sameX with
-    same | opposite
-  · exfalso
-    have samePoint : (genericAddPoint E P Q domain).toMathlib = Q.toMathlib := by
-      simpa only [AffinePoint.toMathlib] using same
-    have zero : P.toMathlib = 0 := by
-      apply add_right_cancel (b := Q.toMathlib)
-      simpa only [zero_add] using (result_group E P Q domain).trans samePoint
-    exact (WeierstrassCurve.Affine.Point.some_ne_zero P.nonsingular) zero
-  · have oppositePoint : (genericAddPoint E P Q domain).toMathlib = -Q.toMathlib := by
-      simpa only [AffinePoint.toMathlib] using opposite
-    have samePoint : (genericAddPoint E P Q domain).toMathlib =
-        (AffinePoint.negate Q).toMathlib := by
-      rw [AffinePoint.negate_toMathlib]
-      exact oppositePoint
-    have coordinates := WeierstrassCurve.Affine.Point.some.inj samePoint
-    exact AffinePoint.ext_coordinates _ _ coordinates.1 coordinates.2
-
-private lemma negate_self_of_two_mul_y_zero (R : AffinePoint E)
-    (zero : (2 : ZMod p) * R.y = 0) : AffinePoint.negate R = R := by
-  apply AffinePoint.ext_coordinates
-  · rfl
-  · have same : -R.y = R.y := by linear_combination -zero
-    simpa [toWeierstrassCurve, WeierstrassCurve.Affine.negY] using same
-
-private lemma exceptional_double_domain (P Q : AffinePoint E)
-    (domain : GenericAddDomain P Q)
-    (sameX : (genericAddPoint E P Q domain).x = Q.x) :
-    GenericDoubleDomain (AffinePoint.negate Q) := by
-  intro zero
-  have same := negate_self_of_two_mul_y_zero E (AffinePoint.negate Q) zero
-  have negateSame : AffinePoint.negate Q = Q := by
-    calc
-      AffinePoint.negate Q = AffinePoint.negate (AffinePoint.negate Q) := same.symm
-      _ = Q := AffinePoint.negate_negate Q
-  have resultSame : (genericAddPoint E P Q domain).toMathlib = Q.toMathlib :=
-    congrArg AffinePoint.toMathlib ((result_eq_negate E P Q domain sameX).trans negateSame)
-  have pointZero : P.toMathlib = 0 := by
-    apply add_right_cancel (b := Q.toMathlib)
-    simpa only [zero_add] using (result_group E P Q domain).trans resultSame
-  exact (WeierstrassCurve.Affine.Point.some_ne_zero P.nonsingular) pointZero
-
-private lemma exceptional_coordinates (P Q : AffinePoint E)
-    (domain : GenericAddDomain P Q)
-    (sameX : (genericAddPoint E P Q domain).x = Q.x) :
-    doubleX E (AffinePoint.negate Q) = P.x ∧ doubleY E (AffinePoint.negate Q) = P.y := by
-  have doubleDomain := exceptional_double_domain E P Q domain sameX
-  have sum : P.toMathlib + Q.toMathlib = -Q.toMathlib := by
-    rw [result_group E P Q domain, result_eq_negate E P Q domain sameX,
-      AffinePoint.negate_toMathlib]
-  have input : P.toMathlib = (AffinePoint.negate Q).toMathlib +
-      (AffinePoint.negate Q).toMathlib := by
-    calc
-      P.toMathlib = (P.toMathlib + Q.toMathlib) + -Q.toMathlib := by abel
-      _ = -Q.toMathlib + -Q.toMathlib := by rw [sum]
-      _ = _ := by rw [AffinePoint.negate_toMathlib]
-  have doubled : WeierstrassCurve.Affine.Point.some
-      (doubleX E (AffinePoint.negate Q)) (doubleY E (AffinePoint.negate Q))
-      (double_nonsingular E (AffinePoint.negate Q) doubleDomain) = P.toMathlib := by
-    rw [← double_group_law_mathlib E (AffinePoint.negate Q) doubleDomain]
-    exact input.symm
-  have coordinates := WeierstrassCurve.Affine.Point.some.inj doubled
-  exact ⟨coordinates.1, coordinates.2⟩
-
-/-- A reachable zero second multiplier makes the slope the same total classical constant. -/
-lemma exceptional_slope (P Q : AffinePoint E) (domain : GenericAddDomain P Q)
-    (zero : secondDifference P.x P.y Q.x Q.y = 0) :
-    slope P.x P.y Q.x Q.y = exceptionalSlope E Q := by
-  have sameX : (genericAddPoint E P Q domain).x = Q.x := by
-    rw [secondDifference_eq E P Q domain] at zero
-    exact (sub_eq_zero.mp zero).symm
-  have coordinates := exceptional_coordinates E P Q domain sameX
-  rw [exceptionalSlope, coordinates.1, coordinates.2]
-  rfl
-
-/-- The normal selector supplies the multiplier domain internally, including coherent control. -/
-lemma normalControl_true (control : Bool) (difference : ZMod p)
-    (active : normalControl control difference = true) :
-    control = true ∧ difference ≠ 0 := by
-  simpa [normalControl] using active
-
-/-- Every inactive binary-field input is preserved without a denominator premise. -/
-lemma fieldOutput_false (Q : AffinePoint E) (x y : ZMod p) :
-    fieldOutput E Q false x y = (x, y) := rfl
-
-/-- Both active branches give the original generic affine point without a reverse-domain premise. -/
-lemma fieldOutput_true (P Q : AffinePoint E) (domain : GenericAddDomain P Q) :
-    fieldOutput E Q true P.x P.y = (genericAddX E P Q, genericAddY E P Q) := by
-  have outputY := GenericPointAddition.InPlace.PointSemantics.selectedOutputY_true E P Q domain
-  rw [GenericPointAddition.InPlace.Semantics.selectedOutputY, if_pos rfl,
-    GenericPointAddition.InPlace.PointSemantics.selectedSlope_true_eq_genericAddSlope
-      E P Q domain,
-    GenericPointAddition.InPlace.PointSemantics.secondDenominator_true_eq E P Q domain] at outputY
-  have xResult : Q.x - secondDifference P.x P.y Q.x Q.y = genericAddX E P Q := by
-    rw [secondDifference_eq E P Q domain]
-    ring
-  have yResult :
-      (if secondDifference P.x P.y Q.x Q.y = 0 then
-        slope P.x P.y Q.x Q.y - exceptionalSlope E Q
-      else secondDifference P.x P.y Q.x Q.y * slope P.x P.y Q.x Q.y) - Q.y =
-      genericAddY E P Q := by
-    by_cases zero : secondDifference P.x P.y Q.x Q.y = 0
-    · rw [if_pos zero, exceptional_slope E P Q domain zero, sub_self, zero_sub]
-      rw [← slope_eq_generic E P Q domain, ← secondDifference_eq E P Q domain, zero,
-        mul_zero, zero_sub] at outputY
-      exact outputY
-    · rw [if_neg zero, secondDifference_eq E P Q domain, slope_eq_generic E P Q domain]
-      simpa only [mul_comm] using outputY
-  exact Prod.ext xResult yResult
 
 /-- The original active affine exclusions give P+Q with every prepared work bit restored. -/
 lemma target_affine_prepared (P Q : AffinePoint E)

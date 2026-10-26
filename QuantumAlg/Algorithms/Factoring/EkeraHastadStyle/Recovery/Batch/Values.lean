@@ -199,45 +199,44 @@ lemma firstSuccessful_eq_some_of_exists
             simp [firstSuccessful, retainFirstSuccessful,
               foldl_retainFirstSuccessful_of_some]⟩
 
-/-- The complete list of recovery values for all unordered pairs in a fixed
-sixteen-sample batch. -/
-def batchPairValues (modulus m ell : Nat)
-    (inputs : List.Vector (PreparedSample modulus m ell) 16) :
+/-- The complete list of recovery values for all unordered pairs in a finite
+sample batch. -/
+def batchPairValues (modulus m ell : Nat) {sampleCount : Nat}
+    (inputs : List.Vector (PreparedSample modulus m ell) sampleCount) :
     List (Option Nat) :=
   inputs.unorderedPairs.toList.map (recoverPreparedPair modulus m ell)
 
-/-- The fixed sixteen-sample batch result is the first success across all of
+/-- The finite batch result is the first success across all of
 its unordered pairs. -/
-def batchValue (modulus m ell : Nat)
-    (inputs : List.Vector (PreparedSample modulus m ell) 16) : Option Nat :=
+def batchValue (modulus m ell : Nat) {sampleCount : Nat}
+    (inputs : List.Vector (PreparedSample modulus m ell) sampleCount) : Option Nat :=
   firstSuccessful (batchPairValues modulus m ell inputs)
 
 /-- Forgetting vector lengths exposes the canonical list pair enumeration. -/
-lemma batchPairValues_eq_list (modulus m ell : Nat)
-    (inputs : List.Vector (PreparedSample modulus m ell) 16) :
+lemma batchPairValues_eq_list (modulus m ell : Nat) {sampleCount : Nat}
+    (inputs : List.Vector (PreparedSample modulus m ell) sampleCount) :
     batchPairValues modulus m ell inputs =
       inputs.toList.unorderedPairs.map (recoverPreparedPair modulus m ell) := by
   simp only [batchPairValues, List.Vector.toList_unorderedPairs]
 
-/-- The fixed batch scans exactly all `choose 16 2 = 120` pair values. -/
-lemma batchPairValues_length (modulus m ell : Nat)
-    (inputs : List.Vector (PreparedSample modulus m ell) 16) :
-    (batchPairValues modulus m ell inputs).length = 120 := by
+/-- The batch scans every unordered pair, in the canonical input order. -/
+lemma batchPairValues_length (modulus m ell : Nat) {sampleCount : Nat}
+    (inputs : List.Vector (PreparedSample modulus m ell) sampleCount) :
+    (batchPairValues modulus m ell inputs).length = Nat.choose sampleCount 2 := by
   rw [batchPairValues_eq_list, List.length_map, List.length_unorderedPairs]
   rw [List.Vector.toList_length]
-  norm_num [Nat.choose]
 
 /-- List-level bridge for the fixed batch value. -/
-lemma batchValue_eq_list (modulus m ell : Nat)
-    (inputs : List.Vector (PreparedSample modulus m ell) 16) :
+lemma batchValue_eq_list (modulus m ell : Nat) {sampleCount : Nat}
+    (inputs : List.Vector (PreparedSample modulus m ell) sampleCount) :
     batchValue modulus m ell inputs =
       firstSuccessful
         (inputs.toList.unorderedPairs.map (recoverPreparedPair modulus m ell)) := by
   simp only [batchValue, batchPairValues, List.Vector.toList_unorderedPairs]
 
 /-- Any successful pair value makes the fixed batch return some pair value. -/
-lemma batchValue_eq_some_of_exists (modulus m ell : Nat)
-    (inputs : List.Vector (PreparedSample modulus m ell) 16)
+lemma batchValue_eq_some_of_exists (modulus m ell : Nat) {sampleCount : Nat}
+    (inputs : List.Vector (PreparedSample modulus m ell) sampleCount)
     (hexists : ∃ factor, some factor ∈ batchPairValues modulus m ell inputs) :
     ∃ factor, batchValue modulus m ell inputs = some factor := by
   unfold batchValue
@@ -245,8 +244,8 @@ lemma batchValue_eq_some_of_exists (modulus m ell : Nat)
 
 /-- A successful batch result is always a nontrivial divisor of the modulus. -/
 lemma batchValue_some_sound
-    {modulus m ell factor : Nat}
-    {inputs : List.Vector (PreparedSample modulus m ell) 16}
+    {modulus m ell factor sampleCount : Nat}
+    {inputs : List.Vector (PreparedSample modulus m ell) sampleCount}
     (hresult : batchValue modulus m ell inputs = some factor) :
     factor ∣ modulus ∧ 1 < factor ∧ factor < modulus := by
   unfold batchValue at hresult

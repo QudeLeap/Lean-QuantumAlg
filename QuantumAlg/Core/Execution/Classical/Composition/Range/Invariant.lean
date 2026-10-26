@@ -24,9 +24,11 @@ open Execution
 noncomputable section
 
 variable {model : ExecutionModel} {ctx : RuntimeCtx model.kind}
+variable {allowAllocation : Bool}
 
 /-- Each indexed transition advances its invariant on the actual store and service state. -/
-lemma forRangeRecord_invariant (count : Nat) (body : Fin count → Circuit model ctx ctx)
+lemma forRangeRecord_invariant (count : Nat)
+    (body : Fin count → Circuit model ctx ctx allowAllocation)
     (records : ∀ index, Store ctx × model.HiddenState →
       (Store ctx × model.HiddenState) × (body index).Path)
     (Invariant : Nat → Store ctx × model.HiddenState → Prop)
@@ -44,7 +46,7 @@ lemma forRangeRecord_invariant (count : Nat) (body : Fin count → Circuit model
 
 /-- Store-only chronological records retain invariants without exposing service state. -/
 lemma forRangeStoreRecord_invariant (count : Nat)
-    (body : Fin count → Circuit model ctx ctx)
+    (body : Fin count → Circuit model ctx ctx allowAllocation)
     (records : ∀ index, Store ctx → Store ctx × (body index).Path)
     (Invariant : Nat → Store ctx → Prop)
     (advance : ∀ index store, Invariant index.val store →

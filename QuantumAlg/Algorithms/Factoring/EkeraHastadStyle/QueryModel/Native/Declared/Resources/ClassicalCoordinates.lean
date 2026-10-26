@@ -86,9 +86,10 @@ private lemma offsets_zero (coordinateWidth modulusWidth : Nat)
         slot_zero event outside, ih, add_zero]
 
 /-- Every non-classical-operation coordinate is absent from the original recovery allowance. -/
-lemma declared_recovery_count_eq_zero (N : Nat) :
+lemma declared_recovery_count_eq_zero (N : Nat) (additionalMembers : Nat := 14) :
     ResourcePool.count event
-      (LatticeFixedBatchRecoveryMachine.eventEnvelope (model := model) N) = 0 := by
+      (LatticeFixedBatchRecoveryMachine.eventEnvelope (model := model) N additionalMembers) = 0
+        := by
   simp [LatticeFixedBatchRecoveryMachine.eventEnvelope,
     LatticeBatchRecoveryWorkspaceBody.eventEnvelope,
     LatticeSharedQuadraticInitialization.eventEnvelope,

@@ -11,6 +11,7 @@ import all QuantumAlg.Core.Execution.Context.Embedding.Framing
 import all QuantumAlg.Core.Execution.Store.MarginalSum
 import all QuantumAlg.Core.Execution.Store.History
 import all QuantumAlg.Core.Execution.Unitary.StoreFilter
+import all QuantumAlg.Core.Base.Tensor.Reference
 
 /-!
 # Stored point instrument and reference factor
@@ -277,15 +278,6 @@ open scoped Kronecker
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
-private lemma unitary_tensor_identity {Local Reference : Register}
-    (operator : UnitaryOperator Local) :
-    (UnitaryOperator.prodTensor operator (1 : UnitaryOperator Reference) :
-      HilbertOperator (Register.prod Local Reference)) =
-        (operator : HilbertOperator Local) ⊗ₖ (1 : HilbertOperator Reference) := by
-  ext row column
-  rw [UnitaryOperator.unitaryOperator_prodTensor_apply]
-  rfl
-
 private lemma projector_tensor_identity {Local Reference : Register} {Outcome : Type}
     [DecidableEq Outcome] (readout : Local.Index → Outcome) (outcome : Outcome) :
     ZMeasurement.projector
@@ -358,7 +350,7 @@ private lemma reset_reference_factor (width : Nat)
       (Local := (NumeratorMeasurement.context width).register)
       (Reference := Reference) (NumeratorObservation.word width)
       (NumeratorReset.outcome (stored.read (NumeratorMeasurement.input width)))
-  simp only [NumeratorResetConjugation.operator, unitary_tensor_identity]
+  simp only [NumeratorResetConjugation.operator, unitaryOperator_prodTensor_identity]
   erw [detector_factor]
   change (correction ⊗ₖ (1 : HilbertOperator Reference)) *
       (detector ⊗ₖ (1 : HilbertOperator Reference)) *
@@ -418,7 +410,7 @@ private lemma controlled_reference_factor (operation : InPlaceTarget.Operation) 
     simpa only [Matrix.one_mul] using
       (Matrix.mul_kronecker_mul A B
         (1 : HilbertOperator Reference) (1 : HilbertOperator Reference))
-  simp only [InPlaceControlled.nativeJoint, unitary_tensor_identity]
+  simp only [InPlaceControlled.nativeJoint, unitaryOperator_prodTensor_identity]
   change (after ⊗ₖ (1 : HilbertOperator Reference)) *
       (reset ⊗ₖ (1 : HilbertOperator Reference)) *
       (before ⊗ₖ (1 : HilbertOperator Reference)) =
@@ -446,6 +438,10 @@ private lemma arithmetic_reference_factor (operation : InPlaceTarget.Operation) 
   exact framed_tensor_identity (InPlaceControlled.context modulus.size)
     (selectorContext modulus.size) (selector_disjoint modulus.size) arithmetic Reference
 
+-- Native words are already certified. Their matrices stay opaque during reference algebra.
+attribute [local irreducible] MeasuredPointAddition.runtimeProgram
+  beforeDivision beforeMultiplication afterMultiplication
+
 /-- The original five factors keep their order and both actual retained stores. -/
 lemma pointKraus_reference_factor {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
     (Q : AffinePoint E) (divisionStore finalStore : Store (context p.size)) :
@@ -469,23 +465,14 @@ lemma pointKraus_reference_factor {p : Nat} (E : PrimeFieldShortWeierstrass p) [
   intro Reference
   unfold pointKraus
   rw [multiplied_factor Reference, divided_factor Reference]
-  have tensor_mul (A B : HilbertOperator (context p.size).register) :
-      (A * B) ⊗ₖ (1 : HilbertOperator Reference) =
-        (A ⊗ₖ (1 : HilbertOperator Reference)) *
-          (B ⊗ₖ (1 : HilbertOperator Reference)) := by
-    simpa only [Matrix.one_mul] using
-      (Matrix.mul_kronecker_mul A B
-        (1 : HilbertOperator Reference) (1 : HilbertOperator Reference))
-  simp only [MeasuredPointAddition.nativeJoint, unitary_tensor_identity]
+  simp only [MeasuredPointAddition.nativeJoint, unitaryOperator_prodTensor_identity]
   change (after ⊗ₖ (1 : HilbertOperator Reference)) *
       (multiplied ⊗ₖ (1 : HilbertOperator Reference)) *
       (middle ⊗ₖ (1 : HilbertOperator Reference)) *
       (divided ⊗ₖ (1 : HilbertOperator Reference)) *
       (before ⊗ₖ (1 : HilbertOperator Reference)) =
     (after * multiplied * middle * divided * before) ⊗ₖ (1 : HilbertOperator Reference)
-  rw [tensor_mul (after * multiplied * middle * divided) before,
-    tensor_mul (after * multiplied * middle) divided,
-    tensor_mul (after * multiplied) middle, tensor_mul after multiplied]
+  simp only [HilbertOperator.kronecker_identity_mul]
 
 end
 

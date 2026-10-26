@@ -984,6 +984,29 @@ lemma card_shortLogTinyMultiplierObstructionPairs_mul_128_le_square
     _ = (2 ^ (ell + m)) ^ 2 := by
       rw [show 2 * (ell + m) = (ell + m) * 2 by omega, pow_mul]
 
+/-- One additional rounded tradeoff bit halves the obstruction fraction.
+This hypothesis holds at the RSA-2048 parameters `m=1025`, `ell=513`. -/
+lemma card_shortLogTinyMultiplierObstructionPairs_mul_256_le_square
+    {m ell : Nat} (hm : 3 ≤ m) (htradeoff : m + 1 ≤ 2 * ell) :
+    (shortLogTinyMultiplierObstructionPairs m ell).card * 256 ≤
+      (2 ^ (ell + m)) ^ 2 := by
+  have hcard := card_shortLogTinyMultiplierObstructionPairs_le (m := m)
+    (ell := ell) hm
+  calc
+    (shortLogTinyMultiplierObstructionPairs m ell).card * 256 ≤
+        (2 ^ (m - 3) * (2 ^ (m - 2)) ^ 2) * 256 :=
+      Nat.mul_le_mul_right 256 hcard
+    _ = 2 ^ (3 * m + 1) := by
+      rw [show 256 = 2 ^ 8 by norm_num, pow_two,
+        ← pow_add, ← pow_add, ← pow_add]
+      congr 1
+      omega
+    _ ≤ 2 ^ (2 * (ell + m)) := by
+      apply Nat.pow_le_pow_right (by norm_num)
+      omega
+    _ = (2 ^ (ell + m)) ^ 2 := by
+      rw [show 2 * (ell + m) = (ell + m) * 2 by omega, pow_mul]
+
 /-- Excluding the finite short-multiplier obstruction forces the precise
 no-tiny-vector condition used by the fixed-dimensional lattice search. -/
 lemma shortLogNoTinyVector_of_noTinyMultiplierObstruction

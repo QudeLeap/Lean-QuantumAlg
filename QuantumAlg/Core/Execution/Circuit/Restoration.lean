@@ -8,6 +8,8 @@ module
 
 import all QuantumAlg.Core.Execution.Owned.CircuitRestoration
 import all QuantumAlg.Core.Execution.Borrowed.Parallel
+import all QuantumAlg.Core.Execution.Borrowed.OwnedLayoutView
+import all QuantumAlg.Core.Execution.Context.OwnedLayoutView.Borrowed
 
 /-!
 # Complete borrowed restoration for actual circuits on owned quantum systems
@@ -166,6 +168,11 @@ lemma borrowedRestored_of_noBorrowedQuantum {model : ExecutionModel}
         (fun ref {_} _ initial => bodyIH environment
           (embedding_noBorrowedQuantum placement noBorrowedQuantum) ref initial)
         Reference state
+  | ownedLayoutView view body bodyIH =>
+      intro noBorrowedQuantum Reference History _ state
+      exact borrowedRestored_ownedLayoutView view body environment Reference state
+        (bodyIH environment (view.borrowedQuantumWires_eq.symm.trans noBorrowedQuantum)
+          Reference (view.split state))
   | parallelClassical join separate first second firstIH secondIH =>
       intro noBorrowedQuantum Reference History _ state
       exact borrowedRestored_parallelClassical

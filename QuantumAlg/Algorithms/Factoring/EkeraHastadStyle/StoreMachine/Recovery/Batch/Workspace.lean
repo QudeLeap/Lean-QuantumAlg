@@ -16,7 +16,7 @@ import all QuantumAlg.Algorithms.Factoring.EkeraHastadStyle.StoreMachine.Recover
 
 The persistent six-cell batch state is allocated first. The original six pair
 packages follow, then an independent twenty-six-cell quadratic package. All
-120 pairs reuse this same allocation before lexical release returns the caller store.
+All unordered pairs reuse this same allocation before lexical release returns the caller store.
 -/
 
 namespace QuantumAlg.Factoring.EkeraHastadStyle.Canonical.LatticeBatchRecoveryWorkspace
@@ -26,6 +26,8 @@ open Execution.ClassicalWorkspace
 open ClassicalRoutines
 
 noncomputable section
+
+variable {additionalMembers : Nat}
 
 /-- The retained parameter viewed inside the persistent top workspace. -/
 def parameterAt {kind : ProblemKind} {outer ctx : RuntimeCtx kind} {N : Nat}
@@ -37,8 +39,8 @@ def parameterAt {kind : ProblemKind} {outer ctx : RuntimeCtx kind} {N : Nat}
 /-- The retained terminals viewed inside the persistent top workspace. -/
 def terminalsAt {kind : ProblemKind} {outer ctx : RuntimeCtx kind} {N : Nat}
     (transport : Transport outer ctx)
-    (terminals : LatticePairRecoveryBatch.Terminals outer N) :
-    LatticePairRecoveryBatch.Terminals ctx N :=
+    (terminals : LatticePairRecoveryBatch.Terminals outer N additionalMembers) :
+    LatticePairRecoveryBatch.Terminals ctx N additionalMembers :=
   LatticePairRecoveryFoldWorkspace.liftTerminals transport terminals
 
 /-- Fresh top cells frame the parameter and both terminals of every pair. -/
@@ -47,7 +49,7 @@ lemma factorFrames {kind : ProblemKind}
     (top : LatticeBatchRecoveryWorkspaceLayout.TopCells ctx N)
     (transport : Transport outer ctx)
     (separated : top.TransportSeparated transport)
-    (terminals : LatticePairRecoveryBatch.Terminals outer N)
+    (terminals : LatticePairRecoveryBatch.Terminals outer N additionalMembers)
     (parameter : CInputRef outer (ParameterShape N)) :
     LatticePairRecoveryFoldWorkspace.FactorFrameAvoids
       (LatticeBatchRecoveryWorkspaceLayout.factorSelection top)

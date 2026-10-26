@@ -10,7 +10,6 @@ public import QuantumAlg.Algorithms.EllipticCurve.Resources.Spec
 public import QuantumAlg.Components.GateModel.Algorithm
 public import QuantumAlg.Components.Classical.Model.BitWord
 import all QuantumAlg.Algorithms.EllipticCurve.DLP.Measured.Recovery.Input
-import all QuantumAlg.Algorithms.EllipticCurve.DLP.Measured.Recovery.Algorithm
 import all QuantumAlg.Core.Algorithm.Solves
 
 /-!

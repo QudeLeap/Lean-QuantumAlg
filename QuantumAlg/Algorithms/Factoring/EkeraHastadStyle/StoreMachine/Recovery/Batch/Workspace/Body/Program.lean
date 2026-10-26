@@ -26,6 +26,8 @@ open ClassicalRoutines
 
 noncomputable section
 
+variable {additionalMembers : Nat}
+
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
 -- Observe the mathematical full-path record through the generic composition laws.
@@ -36,12 +38,14 @@ variable {model : ExecutionModel}
   {root topCtx inner : RuntimeCtx model.kind} {N : Nat}
 
 /-- Run the shared constant prefix, every pair, and the caller output packing in order. -/
-def into (input : Input N) (refs : Refs root topCtx inner N) : Circuit model inner inner :=
+def into (input : Input N) (refs : Refs root topCtx inner N additionalMembers) : Circuit model
+  inner inner :=
   .seq (LatticeSharedQuadraticInitialization.into input (initializationRefs refs))
     (LatticeBatchRecoveryEndpoint.into input (endpointRefs refs))
 
 /-- Actual full store and both chronological paths of the allocated body. -/
-noncomputable def step (input : Input N) (refs : Refs root topCtx inner N) (store : Store inner) :
+noncomputable def step (input : Input N) (refs : Refs root topCtx inner N additionalMembers)
+  (store : Store inner) :
     Store inner × (into input refs).Path :=
   Circuit.sequenceStoreRecord
     (LatticeSharedQuadraticInitialization.into input (initializationRefs refs))
@@ -50,14 +54,15 @@ noncomputable def step (input : Input N) (refs : Refs root topCtx inner N) (stor
     (LatticeBatchRecoveryEndpoint.step input (endpointRefs refs)) store
 
 /-- The actual endpoint store follows the actual initialization store. -/
-lemma step_store (input : Input N) (refs : Refs root topCtx inner N) (store : Store inner) :
+lemma step_store (input : Input N) (refs : Refs root topCtx inner N additionalMembers) (store :
+  Store inner) :
     (step input refs store).1 =
       (LatticeBatchRecoveryEndpoint.step input (endpointRefs refs)
         (LatticeSharedQuadraticInitialization.step input (initializationRefs refs) store).1).1 :=
   Circuit.sequenceStoreRecord_store _ _ _ _ store
 
 /-- Both phases execute on the full incoming history and arbitrary external reference. -/
-lemma into_execute (input : Input N) (refs : Refs root topCtx inner N)
+lemma into_execute (input : Input N) (refs : Refs root topCtx inner N additionalMembers)
     (Reference : Register) {History : Type} [Fintype History]
     (state : State inner Reference (model.HiddenState × History)) :
     (into input refs).execute environment Reference state = state.mapClassical (fun entry =>
@@ -68,7 +73,8 @@ lemma into_execute (input : Input N) (refs : Refs root topCtx inner N)
     (LatticeBatchRecoveryEndpoint.into_execute input (endpointRefs refs)) Reference state
 
 /-- Every caller read disjoint from both actual stages retains its complete input value. -/
-lemma into_callerFrame (input : Input N) (refs : Refs root topCtx inner N) (store : Store inner)
+lemma into_callerFrame (input : Input N) (refs : Refs root topCtx inner N additionalMembers)
+  (store : Store inner)
     {shape : CShape} (other : CInputRef inner shape) (avoids : CallerFrameAvoids refs other) :
     (step input refs store).1.read other = store.read other := by
   rw [step_store]

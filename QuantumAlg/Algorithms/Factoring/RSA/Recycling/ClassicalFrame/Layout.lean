@@ -6,20 +6,20 @@ Authors: QudeLeap Team
 
 module
 
+public import QuantumAlg.Algorithms.Factoring.RSA.Configuration
+
 import all QuantumAlg.Algorithms.Factoring.EkeraHastadStyle.Parameters
 import all QuantumAlg.Algorithms.Factoring.EkeraHastadStyle.StoreMachine.Recovery.Batch.Output.Layout
 import all QuantumAlg.Algorithms.Factoring.ShorStyle.Sampler.Retained.Frame
 import all QuantumAlg.Primitives.ShortDLP.CompiledMAU.Runtime.Results.Laws
-import all QuantumAlg.Primitives.ShortDLP.CompiledMAU.Recycling.Context
 import all QuantumAlg.Core.Execution.Owned.ClassicalInputs
 import all QuantumAlg.Core.Execution.Store.Ext
-import all QuantumAlg.Core.Execution.Measurement.Cells.Frame
 
 /-!
 # All classical batch destinations before the sole recycled quantum bank
 
 Each chronological batch owns a source sample, the complete sampled parameter,
-sixteen distinct packed observations, and a recovery factor. A separate final
+configured distinct packed observations, and a recovery factor. A separate final
 cell receives the first successful factor. The allocation order is independent
 of sampling: retaining these cells initializes storage and does not draw any
 future source sample. Every member can therefore use one fixed recycling
@@ -30,6 +30,8 @@ namespace QuantumAlg.Factoring.RSA.Recycling.ClassicalFrame
 
 noncomputable section
 
+variable [configuration : Configuration]
+
 open Execution ShortDLP.CompiledMAU
 open EkeraHastadStyle.Canonical
 
@@ -37,10 +39,10 @@ open EkeraHastadStyle.Canonical
 def sampled (base : RuntimeCtx .quantum) (N : Nat) : RuntimeCtx .quantum :=
   ShorStyle.Canonical.Sampler.Retained.context base N
 
-/-- Sixteen chronological destinations use the existing packed-result layout. -/
+/-- Configured chronological destinations use the existing packed-result layout. -/
 def outcomes (base : RuntimeCtx .quantum) (N : Nat) : RuntimeCtx .quantum :=
   RuntimeResults.context (shortLogBits N) (tradeoffBits N) (arithmeticBits N)
-    (sampled base N) 16
+    (sampled base N) membersPerBatch
 
 /-- One batch retains its complete source, observations, and independent factor result. -/
 def batch (base : RuntimeCtx .quantum) (N : Nat) : RuntimeCtx .quantum :=
@@ -60,7 +62,7 @@ def sampledWrite {base : RuntimeCtx .quantum} {shape : CShape} (N : Nat)
 def finishWrite {base : RuntimeCtx .quantum} {shape : CShape} (N : Nat)
     (ref : CWriteRef (sampled base N) shape) : CWriteRef (batch base N) shape :=
   (RuntimeResults.liftWrite (shortLogBits N) (tradeoffBits N) (arithmeticBits N)
-    ref 16).underRetained (outcomes base N).canonicalFreshKey
+    ref membersPerBatch).underRetained (outcomes base N).canonicalFreshKey
       (LatticeBatchRecoveryOutput.OutputShape N) (outcomes base N).canonicalFreshKey_fresh
 
 /-- Existing writable storage remains the same physical storage after one complete batch frame. -/
@@ -72,7 +74,7 @@ def batchWrite {base : RuntimeCtx .quantum} {shape : CShape} (N : Nat)
 def batchInput {base : RuntimeCtx .quantum} {shape : CShape} (N : Nat)
     (input : CInputRef base shape) : CInputRef (batch base N) shape :=
   (RuntimeResults.liftInput (shortLogBits N) (tradeoffBits N) (arithmeticBits N)
-    (ShorStyle.Canonical.Sampler.Retained.liftInput (N := N) input) 16).underRetained
+    (ShorStyle.Canonical.Sampler.Retained.liftInput (N := N) input) membersPerBatch).underRetained
       (outcomes base N).canonicalFreshKey (LatticeBatchRecoveryOutput.OutputShape N)
       (outcomes base N).canonicalFreshKey_fresh
 
@@ -87,10 +89,10 @@ def batchParameter (base : RuntimeCtx .quantum) (N : Nat) :
   finishWrite N (ShorStyle.Canonical.Sampler.Retained.parameterRef base N)
 
 /-- Each member writes its paid packing result to its own retained destination. -/
-def batchPacked (base : RuntimeCtx .quantum) (N : Nat) (member : Fin 16) :
+def batchPacked (base : RuntimeCtx .quantum) (N : Nat) (member : Fin membersPerBatch) :
     CWriteRef (batch base N) (.bits (measurementBits N)) :=
   (RuntimeResults.reference (shortLogBits N) (tradeoffBits N) (arithmeticBits N)
-    (sampled base N) 16 member).underRetained (outcomes base N).canonicalFreshKey
+    (sampled base N) membersPerBatch member).underRetained (outcomes base N).canonicalFreshKey
       (LatticeBatchRecoveryOutput.OutputShape N) (outcomes base N).canonicalFreshKey_fresh
 
 /-- The batch's recovery writes into a separate real optional-factor cell. -/
@@ -146,9 +148,9 @@ def parameters (N : Nat) : (base : RuntimeCtx .quantum) → (count : Nat) →
   | base, count + 1, index => Fin.cases
       (batchesWrite N (batchParameter base N) count) (parameters N (batch base N) count) index
 
-/-- All sixteen members of every batch have distinct retained packed destinations. -/
+/-- All configured members of every batch have distinct retained packed destinations. -/
 def packed (N : Nat) : (base : RuntimeCtx .quantum) → (count : Nat) →
-    Fin count → Fin 16 → CWriteRef (batches N base count) (.bits (measurementBits N))
+    Fin count → Fin membersPerBatch → CWriteRef (batches N base count) (.bits (measurementBits N))
   | _, 0, index, _ => Fin.elim0 index
   | base, count + 1, index, member => Fin.cases
       (batchesWrite N (batchPacked base N member) count)
@@ -172,7 +174,8 @@ def parameterRef (base : RuntimeCtx .quantum) (N count : Nat) (index : Fin count
   finish N count (parameters N base count index)
 
 /-- The paid packing destination for one chronological batch member. -/
-def packedRef (base : RuntimeCtx .quantum) (N count : Nat) (index : Fin count) (member : Fin 16) :
+def packedRef (base : RuntimeCtx .quantum) (N count : Nat) (index : Fin count) (member : Fin
+  membersPerBatch) :
     CWriteRef (context base N count) (.bits (measurementBits N)) :=
   finish N count (packed N base count index member)
 
@@ -203,7 +206,7 @@ lemma rsaRecyclingFrame_batch_wires (base : RuntimeCtx .quantum) (N : Nat) :
     (batch base N).quantumWires = base.quantumWires := by
   rw [batch, RuntimeCtx.quantumWires_addRetained]
   exact (RuntimeResults.shortDLP_runtimeResults_wires
-    (shortLogBits N) (tradeoffBits N) (arithmeticBits N) (sampled base N) 16).trans
+    (shortLogBits N) (tradeoffBits N) (arithmeticBits N) (sampled base N) membersPerBatch).trans
       (by
         simp only [sampled, ShorStyle.Canonical.Sampler.Retained.context,
           ShorStyle.Canonical.Sampler.Retained.sampleContext,
@@ -225,50 +228,12 @@ lemma frameNoQuantum (base : RuntimeCtx .quantum) (noQuantum : base.quantumWires
     (N count : Nat) : (context base N count).quantumWires = [] :=
   (rsaRecyclingFrame_context_wires base N count).trans noQuantum
 
-private lemma bankDisjoint (base : RuntimeCtx .quantum) (noQuantum : base.quantumWires = [])
-    (N count : Nat) :
-    List.Disjoint
-      (ShortDLP.CompiledMAU.Recycling.Arithmetic.layout (arithmeticBits N)).toQuantum.identities
-      (context base N count).physicalIdx := by
-  simp only [RuntimeCtx.physicalIdx, frameNoQuantum base noQuantum N count, List.map_nil]
-  exact List.disjoint_nil_right _
-
-/-- Structural writable transport crosses the sole bank and its finite output cells. -/
-def bankWrite {base : RuntimeCtx .quantum} (noQuantum : base.quantumWires = [])
-    (N count : Nat) {shape : CShape} (ref : CWriteRef (context base N count) shape) :
-    CWriteRef (ShortDLP.CompiledMAU.Recycling.context (context base N count)
-      (frameNoQuantum base noQuantum N count) (shortLogBits N) (tradeoffBits N)
-      (arithmeticBits N)) shape :=
-  MeasurementCells.liftWrite 2
-    { toCStorageRef := ref.toCStorageRef.underOwnedLayout
-        (context base N count).canonicalFreshKey
-        (ShortDLP.CompiledMAU.Recycling.Arithmetic.layout (arithmeticBits N)).toQuantum
-        (context base N count).canonicalFreshKey_fresh (bankDisjoint base noQuantum N count)
-      writable := ref.writable }
-    (ShortDLP.CompiledMAU.Recycling.resultBits (shortLogBits N) (tradeoffBits N))
-
-/-- Structural input transport performs no copy, packing, or additional allocation. -/
-def bankInput {base : RuntimeCtx .quantum} (noQuantum : base.quantumWires = [])
-    (N count : Nat) {shape : CShape} (input : CInputRef (context base N count) shape) :
-    CInputRef (ShortDLP.CompiledMAU.Recycling.context (context base N count)
-      (frameNoQuantum base noQuantum N count) (shortLogBits N) (tradeoffBits N)
-      (arithmeticBits N)) shape :=
-  MeasurementCells.liftInput 2
-    (input.underOwnedLayout (context base N count).canonicalFreshKey
-      (ShortDLP.CompiledMAU.Recycling.Arithmetic.layout (arithmeticBits N)).toQuantum
-      (context base N count).canonicalFreshKey_fresh (bankDisjoint base noQuantum N count))
-    (ShortDLP.CompiledMAU.Recycling.resultBits (shortLogBits N) (tradeoffBits N))
-
-lemma rsaRecyclingFrame_bankWrite_key {base : RuntimeCtx .quantum}
-    (noQuantum : base.quantumWires = []) (N count : Nat) {shape : CShape}
-    (ref : CWriteRef (context base N count) shape) :
-    (bankWrite noQuantum N count ref).key = ref.key :=
-  MeasurementCells.liftWrite_key 2 _ _
-
+omit configuration in
 /-- One batch's source lift keeps the original underlying storage key. -/
 lemma rsaRecyclingFrame_sampledWrite_key {base : RuntimeCtx .quantum} {shape : CShape}
     (N : Nat) (ref : CWriteRef base shape) : (sampledWrite N ref).key = ref.key := rfl
 
+omit configuration in
 private lemma retainedWrite_key {ctx : RuntimeCtx .quantum} {shape : CShape}
     (ref : CWriteRef ctx shape) (key : StorageKey) (retainedShape : CShape)
     (fresh : key ∉ ctx.keys) :
@@ -279,11 +244,12 @@ lemma rsaRecyclingFrame_finishWrite_key {base : RuntimeCtx .quantum} {shape : CS
     (N : Nat) (ref : CWriteRef (sampled base N) shape) :
     (finishWrite N ref).key = ref.key :=
   (retainedWrite_key (ctx := outcomes base N)
-    (RuntimeResults.liftWrite (shortLogBits N) (tradeoffBits N) (arithmeticBits N) ref 16)
+    (RuntimeResults.liftWrite (shortLogBits N) (tradeoffBits N) (arithmeticBits N) ref
+      membersPerBatch)
     (outcomes base N).canonicalFreshKey (LatticeBatchRecoveryOutput.OutputShape N)
     (outcomes base N).canonicalFreshKey_fresh).trans
       (RuntimeResults.shortDLP_runtimeResults_liftWrite_key
-        (shortLogBits N) (tradeoffBits N) (arithmeticBits N) ref 16)
+        (shortLogBits N) (tradeoffBits N) (arithmeticBits N) ref membersPerBatch)
 
 /-- Extending by a complete classical batch preserves an older writable cell's key. -/
 lemma rsaRecyclingFrame_batchWrite_key {base : RuntimeCtx .quantum} {shape : CShape}
@@ -303,10 +269,12 @@ lemma rsaRecyclingFrame_liftWrite_key (N count : Nat) {base : RuntimeCtx .quantu
     {shape : CShape} (ref : CWriteRef base shape) : (liftWrite N count ref).key = ref.key :=
   rsaRecyclingFrame_batchesWrite_key N ref count
 
+omit configuration in
 private lemma reference_mem {base : RuntimeCtx .quantum} {shape : CShape}
     (ref : CWriteRef base shape) : ref.key ∈ base.keys :=
   CInputRef.storageKeys_subset_context (.storage ref.toCStorageRef) (List.mem_singleton_self _)
 
+omit configuration in
 private lemma outcome_keys_include (m ell width : Nat) (base : RuntimeCtx .quantum)
     (count : Nat) {key : StorageKey} (present : key ∈ base.keys) :
     key ∈ (RuntimeResults.context m ell width base count).keys := by
@@ -318,36 +286,38 @@ private lemma outcome_keys_include (m ell width : Nat) (base : RuntimeCtx .quant
 private lemma batch_keys_include (base : RuntimeCtx .quantum) (N : Nat)
     {key : StorageKey} (present : key ∈ base.keys) : key ∈ (batch base N).keys :=
   List.mem_cons_of_mem _ (outcome_keys_include (shortLogBits N) (tradeoffBits N)
-    (arithmeticBits N) (sampled base N) 16
+    (arithmeticBits N) (sampled base N) membersPerBatch
       (List.mem_cons_of_mem _ (List.mem_cons_of_mem _ present)))
 
-private lemma batchPacked_key (base : RuntimeCtx .quantum) (N : Nat) (member : Fin 16) :
+private lemma batchPacked_key (base : RuntimeCtx .quantum) (N : Nat) (member : Fin
+  membersPerBatch) :
     (batchPacked base N member).key =
       (RuntimeResults.reference (shortLogBits N) (tradeoffBits N) (arithmeticBits N)
-        (sampled base N) 16 member).key :=
+        (sampled base N) membersPerBatch member).key :=
   retainedWrite_key (ctx := outcomes base N)
     (RuntimeResults.reference (shortLogBits N) (tradeoffBits N) (arithmeticBits N)
-      (sampled base N) 16 member)
+      (sampled base N) membersPerBatch member)
     (outcomes base N).canonicalFreshKey (LatticeBatchRecoveryOutput.OutputShape N)
     (outcomes base N).canonicalFreshKey_fresh
 
-private lemma batch_packed_fresh (base : RuntimeCtx .quantum) (N : Nat) (member : Fin 16) :
+private lemma batch_packed_fresh (base : RuntimeCtx .quantum) (N : Nat) (member : Fin
+  membersPerBatch) :
     (batchPacked base N member).key ∉ base.keys := by
   rw [batchPacked_key]
   intro present
   exact RuntimeResults.shortDLP_runtimeResults_reference_fresh
-    (shortLogBits N) (tradeoffBits N) (arithmeticBits N) (sampled base N) 16 member
+    (shortLogBits N) (tradeoffBits N) (arithmeticBits N) (sampled base N) membersPerBatch member
       (List.mem_cons_of_mem _ (List.mem_cons_of_mem _ present))
 
 private lemma batch_packed_injective (base : RuntimeCtx .quantum) (N : Nat) :
     Function.Injective (fun member => (batchPacked base N member).key) := by
   intro left right same
   exact RuntimeResults.shortDLP_runtimeResults_reference_injective
-    (shortLogBits N) (tradeoffBits N) (arithmeticBits N) (sampled base N) 16
+    (shortLogBits N) (tradeoffBits N) (arithmeticBits N) (sampled base N) membersPerBatch
       ((batchPacked_key base N left).symm.trans (same.trans (batchPacked_key base N right)))
 
 private lemma packed_fresh (N : Nat) (base : RuntimeCtx .quantum) (count : Nat)
-    (index : Fin count) (member : Fin 16) :
+    (index : Fin count) (member : Fin membersPerBatch) :
     (packed N base count index member).key ∉ base.keys := by
   induction count generalizing base with
   | zero => exact Fin.elim0 index
@@ -359,9 +329,9 @@ private lemma packed_fresh (N : Nat) (base : RuntimeCtx .quantum) (count : Nat)
       · intro present
         exact ih (batch base N) index (batch_keys_include base N present)
 
-/-- The actual 16*k packed cells have pairwise distinct underlying storage keys. -/
+/-- The actual membersPerBatch*k packed cells have pairwise distinct underlying storage keys. -/
 lemma rsaRecyclingFrame_packed_distinct (N : Nat) (base : RuntimeCtx .quantum) (count : Nat) :
-    Function.Injective (fun address : Fin count × Fin 16 =>
+    Function.Injective (fun address : Fin count × Fin membersPerBatch =>
       (packed N base count address.1 address.2).key) := by
   induction count generalizing base with
   | zero => intro address; exact Fin.elim0 address.1
@@ -394,17 +364,18 @@ lemma rsaRecyclingFrame_packed_distinct (N : Nat) (base : RuntimeCtx .quantum) (
           change (packed N (batch base N) count left member).key =
             (packed N (batch base N) count right other).key at same
           have pairSame : (left, member) = (right, other) := ih (batch base N) same
-          exact congrArg (fun address : Fin count × Fin 16 => (address.1.succ, address.2)) pairSame
+          exact congrArg (fun address : Fin count × Fin membersPerBatch => (address.1.succ,
+            address.2)) pairSame
 
 /-- Final selection and later quantum preparation preserve packed-cell separation. -/
 lemma rsaRecyclingFrame_packedRef_distinct (base : RuntimeCtx .quantum) (N count : Nat) :
-    Function.Injective (fun address : Fin count × Fin 16 =>
+    Function.Injective (fun address : Fin count × Fin membersPerBatch =>
       (packedRef base N count address.1 address.2).key) :=
   rsaRecyclingFrame_packed_distinct N base count
 
 /-- Paid packed destinations cannot overwrite any caller input cell. -/
 lemma rsaRecyclingFrame_packedRef_fresh (base : RuntimeCtx .quantum) (N count : Nat)
-    (index : Fin count) (member : Fin 16) :
+    (index : Fin count) (member : Fin membersPerBatch) :
     (packedRef base N count index member).key ∉ base.keys :=
   packed_fresh N base count index member
 
@@ -418,7 +389,7 @@ lemma rsaRecyclingFrame_selected_separate (base : RuntimeCtx .quantum) (N count 
 
 /-- No packed outcome can overwrite any complete source parameter from any batch. -/
 lemma rsaRecyclingFrame_packed_parameter_separate (base : RuntimeCtx .quantum) (N count : Nat)
-    (index previous : Fin count) (member : Fin 16) :
+    (index previous : Fin count) (member : Fin membersPerBatch) :
     (packedRef base N count index member).key ≠ (parameterRef base N count previous).key := by
   intro same
   have shapes := CStorageRef.storageRef_shape_eq_of_key
@@ -428,7 +399,7 @@ lemma rsaRecyclingFrame_packed_parameter_separate (base : RuntimeCtx .quantum) (
 
 /-- No paid packed destination can alias any batch's optional-factor cell. -/
 lemma rsaRecyclingFrame_packed_factor_separate (base : RuntimeCtx .quantum) (N count : Nat)
-    (index previous : Fin count) (member : Fin 16) :
+    (index previous : Fin count) (member : Fin membersPerBatch) :
     (packedRef base N count index member).key ≠ (factorRef base N count previous).key := by
   intro same
   have shapes := CStorageRef.storageRef_shape_eq_of_key
@@ -436,6 +407,7 @@ lemma rsaRecyclingFrame_packed_factor_separate (base : RuntimeCtx .quantum) (N c
     (factorRef base N count previous).toCStorageRef same
   cases shapes
 
+omit configuration in
 private lemma sample_width_ne_measurement (N : Nat) :
     residueSamplingBits N ≠ measurementBits N := by
   have short := shortLogBits_le_modulusBits_add_one N
@@ -449,7 +421,7 @@ private lemma sample_width_ne_measurement (N : Nat) :
 
 /-- A paid packed observation cannot overwrite any batch's retained random source sample. -/
 lemma rsaRecyclingFrame_packed_sample_separate (base : RuntimeCtx .quantum) (N count : Nat)
-    (index previous : Fin count) (member : Fin 16) :
+    (index previous : Fin count) (member : Fin membersPerBatch) :
     (packedRef base N count index member).key ≠ (sampleRef base N count previous).key := by
   intro same
   have shapes := CStorageRef.storageRef_shape_eq_of_key
@@ -468,7 +440,7 @@ private lemma factor_fresh (N : Nat) (base : RuntimeCtx .quantum) (count : Nat)
         intro present
         exact (outcomes base N).canonicalFreshKey_fresh
           (outcome_keys_include (shortLogBits N) (tradeoffBits N) (arithmeticBits N)
-            (sampled base N) 16
+            (sampled base N) membersPerBatch
               (List.mem_cons_of_mem _ (List.mem_cons_of_mem _ present)))
       · intro present
         exact ih (batch base N) index (batch_keys_include base N present)

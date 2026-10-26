@@ -142,6 +142,10 @@ private lemma selectForCircuitAux_depth {source : ExecutionModel}
       intro gates oracles services selected duration path
       cases selected
       exact bodyIH rfl duration path
+  | ownedLayoutView view body bodyIH =>
+      intro gates oracles services selected duration path
+      cases selected
+      exact bodyIH rfl duration path
   | parallelClassical join separate first second firstIH secondIH =>
       intro gates oracles services selected duration path
       cases selected

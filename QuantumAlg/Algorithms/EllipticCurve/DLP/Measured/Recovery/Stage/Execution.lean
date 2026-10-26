@@ -1386,6 +1386,36 @@ private lemma cells_pullback_sum_sandwich {Caller Child Outcome : Type}
   exact congrArg (fun matrix => matrix row column)
     (cells_pullback_sandwich coordinates (operators outcome) density)
 
+private lemma cells_embed_filter_store_history_matrix
+    {child caller : RuntimeCtx .quantum} (placement : ContextEmbedding child caller)
+    (code : Circuit (.quantum AlgorithmGate.model .empty) child child false)
+    {Reference : Register} {History : Type} [Fintype History]
+    (state : State caller Reference (ClassicalOracleModel.empty.HiddenState × History))
+    (stored : Store caller) (predicate : History → Prop) :
+    let localInput := (placement.split state).mapClassical (fun record =>
+      (record.1, (record.2.2.1, (record.2.2.2, record.2.1))))
+    let localOutput := code.execute environment (placement.frame.register.prod Reference) localInput
+    let restore := fun record : Store child × (ClassicalOracleModel.empty.HiddenState ×
+        ((History × Store placement.frame) × code.Path)) =>
+      (record.1, (record.2.2.1.2, (record.2.1, (record.2.2.1.1, record.2.2.2))))
+    (((Circuit.embed (allowAllocation := false) placement code).execute
+      environment Reference state).filterClassical
+        (fun record => record.1 = stored ∧ predicate record.2.2.1)).quantumMarginal.matrix =
+      ((placement.join (localOutput.mapClassical restore)).filterClassical
+        (fun record => record.1 = stored ∧ predicate record.2.2.1)).quantumMarginal.matrix := by
+  exact congrArg (fun result : State caller Reference
+      (ClassicalOracleModel.empty.HiddenState × (History × code.Path)) =>
+    (result.filterClassical (fun record =>
+      record.1 = stored ∧ predicate record.2.2.1)).quantumMarginal.matrix)
+    (cells_embed_execute_tag_last placement code Reference state)
+
+section
+
+-- Compose the proved split/execute/join laws without normalizing their interpreters again.
+attribute [local irreducible] Circuit.execute ContextEmbedding.split ContextEmbedding.join
+attribute [local irreducible] Circuit.pathFintype
+attribute [local irreducible] ExecutionState.filterClassical ExecutionState.quantumMarginal
+  ExecutionState.mapClassical
 
 private lemma embed_store_history_matrix
     {child caller : RuntimeCtx .quantum} (placement : ContextEmbedding child caller)
@@ -1444,17 +1474,8 @@ private lemma embed_store_history_matrix
     (FrameStore := Store placement.frame) (History := History)
     (Reference := placement.frame.register.prod Reference)
     localInput finalChild finalFrame predicate
-  let embedded : Circuit (.quantum AlgorithmGate.model .empty) caller caller false :=
-    .embed placement code
-  let output : State caller Reference
-      (ClassicalOracleModel.empty.HiddenState × (History × embedded.Path)) :=
-    embedded.execute environment Reference state
-  have actual : output = placement.join (localOutput.mapClassical restore) :=
-    cells_embed_execute_tag_last placement code Reference state
-  have actualMatrix := congrArg (fun result : State caller Reference
-      (ClassicalOracleModel.empty.HiddenState × (History × embedded.Path)) =>
-    (result.filterClassical (fun record =>
-      record.1 = stored ∧ predicate record.2.2.1)).quantumMarginal.matrix) actual
+  have actualMatrix := cells_embed_filter_store_history_matrix (environment := environment)
+    placement code state stored predicate
   refine actualMatrix.trans (outputFiber.trans ?_)
   exact cells_pullback_sum_sandwich coordinates
     (fun outcome : Outcome =>
@@ -1468,6 +1489,8 @@ private lemma embed_store_history_matrix
     (localOutput.filterClassical (fun record => record.1 = finalChild ∧
       record.2.2.1.2 = finalFrame ∧ predicate record.2.2.1.1)).quantumMarginal.matrix
     inputFiber localMatrix
+
+end
 
 private lemma cells_filter_sandwich_congr {C : Type} [Fintype C]
     {R : Register} (state : ExecutionState C R) (operator : HilbertOperator R)

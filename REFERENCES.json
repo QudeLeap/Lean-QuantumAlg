@@ -903,6 +903,68 @@
       "arxiv_version": "v1",
       "entry_point": "9511007.tex",
       "doi": "10.1103/PhysRevLett.76.3228"
+    },
+    {
+      "key": "CST+21",
+      "authors": [
+        "Andrew M. Childs",
+        "Yuan Su",
+        "Minh C. Tran",
+        "Nathan Wiebe",
+        "Shuchen Zhu"
+      ],
+      "year": 2021,
+      "title": "A Theory of Trotter Error",
+      "arxiv_id": "1912.08854",
+      "arxiv_version": "v3",
+      "entry_point": "TrotterErrorTheory.tex"
+    },
+    {
+      "key": "WBA11",
+      "authors": [
+        "James D. Whitfield",
+        "Jacob Biamonte",
+        "Alán Aspuru-Guzik"
+      ],
+      "year": 2011,
+      "title": "Simulation of Electronic Structure Hamiltonians Using Quantum Computers",
+      "arxiv_id": "1001.3855",
+      "arxiv_version": "v3",
+      "entry_point": "h2.arxiv2.tex"
+    },
+    {
+      "key": "Cam22",
+      "authors": [
+        "Earl T. Campbell"
+      ],
+      "year": 2022,
+      "title": "Early fault-tolerant simulations of the Hubbard model",
+      "arxiv_id": "2012.09238",
+      "arxiv_version": "v4",
+      "entry_point": "main.tex"
+    },
+    {
+      "key": "RS16",
+      "authors": [
+        "Neil J. Ross",
+        "Peter Selinger"
+      ],
+      "year": 2016,
+      "title": "Optimal ancilla-free Clifford+T approximation of z-rotations",
+      "arxiv_id": "1403.2975",
+      "arxiv_version": "v3",
+      "entry_point": "gridsynth.tex"
+    },
+    {
+      "key": "G25",
+      "authors": [
+        "Craig Gidney"
+      ],
+      "year": 2025,
+      "title": "A Classical-Quantum Adder with Constant Workspace and Linear Gates",
+      "arxiv_id": "2507.23079",
+      "arxiv_version": "v1",
+      "entry_point": "main.tex"
     }
   ]
 }

@@ -6,6 +6,7 @@ Authors: QudeLeap Team
 
 module
 
+import all QuantumAlg.Algorithms.EllipticCurve.DLP.Measured.Recovery.PublicInput.Domain
 import all QuantumAlg.Algorithms.EllipticCurve.DLP.Measured.Recovery.PublicInput.Probability
 import all QuantumAlg.Algorithms.EllipticCurve.DLP.Measured.Recovery.Execution
 import all QuantumAlg.Algorithms.EllipticCurve.DLP.Measured.Recovery.Points
@@ -45,17 +46,6 @@ local instance {Label : Type} : DecidableEq Label := Classical.decEq Label
 private abbrev Model : ExecutionModel := .quantum AlgorithmGate.model .empty BitWord.model
 
 variable {p : Nat} (E : PrimeFieldShortWeierstrass p) (m : Nat)
-
-/-- The local domain prescribes exactly the original two public point values. -/
-def inputDomain (problem : KnownOrderProblem E.GroupPoint)
-    (state : ExecutionState (Store (Recovery.PublicInput.frame E m)) (Recovery.PublicInput.frame
-      E m).register) :
-    Prop :=
-  ∀ stored, 0 < (state.block stored).mass →
-    stored.read (Recovery.PublicInput.baseRef E m) =
-        ECDLP.Canonical.Runtime.Context.pointValue E problem.generator.toMathlib ∧
-      stored.read (Recovery.PublicInput.targetRef E m) =
-        ECDLP.Canonical.Runtime.Context.pointValue E problem.target.toMathlib
 
 private lemma frame_store_eq (problem : KnownOrderProblem E.GroupPoint)
     (stored : Store (Recovery.PublicInput.frame E m))
@@ -140,18 +130,6 @@ lemma enteredState_mass (problem : KnownOrderProblem E.GroupPoint) {Reference : 
   unfold enteredState
   exact ((oracleInput E m problem original).state.mapClassical_mass _).trans
     (oracleInput E m problem original).normalized
-
-private lemma frame_store_eq_of_borrowed_eq (first second : Store (Recovery.PublicInput.frame
-  E m))
-    (same : first.readBorrowedClassical = second.readBorrowedClassical) : first = second := by
-  obtain ⟨firstTarget, firstBase, firstUnit⟩ := first
-  obtain ⟨secondTarget, secondBase, secondUnit⟩ := second
-  cases firstUnit
-  cases secondUnit
-  change CShape.Value.product firstTarget (.product firstBase .unit) =
-    CShape.Value.product secondTarget (.product secondBase .unit) at same
-  cases same
-  rfl
 
 include E in
 private lemma terminal_noBorrowedClassical :

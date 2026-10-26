@@ -29,11 +29,12 @@ private lemma recovery_affine (modulusWidth m ell coordinateWidth : Nat) :
     LatticeFixedBatchRecoveryMachine.eventCountBound modulusWidth m ell coordinateWidth =
       97_125_852 * modulusWidth + 3_183_480 * m + 3_183_840 * ell +
         291_374_880 * coordinateWidth + 8_695_564_699 := by
+  have choosePairs : Nat.choose 16 2 = 120 := by decide
   norm_num [LatticeFixedBatchRecoveryMachine.eventCountBound,
     LatticeFixedBatchRecoveryMachine.nearestPlaneEnvelopeBound, RSA.shortLogRecoveryFuel,
     modularSetupCardBound, candidateScanCardBound, candidateScanWork, candidateSlotCardBound,
     quadraticGuardedCardBound, natSqrtCardBound, QuadraticPrefix.discriminantWidth,
-    QuadraticPrefix.centerWidth]
+    QuadraticPrefix.centerWidth, choosePairs]
   omega
 
 private lemma batch_affine (n ell : Nat) :

@@ -1019,6 +1019,45 @@ private lemma hadamard_reference_entry (width m : Nat) (Reference : Register)
   rw [localEntry, referenceEntry]
   split_ifs <;> simp_all
 
+private lemma readoutMatrix_reset_row (width m : Nat) (Reference : Register)
+    (outcome : Fin ((Interface width m).quantumLayout.wire
+      (Recovery.Layout.position width m 0)).dimension)
+    (row column : ((Interface width m).register.prod Reference).Index) :
+    readoutMatrix (environment := environment) width m Reference outcome row column =
+      if row.1 (Recovery.Layout.position width m 0) = 0 then
+        (UnitaryOperator.prodTensor
+          ((Gate.singleQubitAt (Interface width m).quantumLayout .empty Gate.HOp
+            (Recovery.Layout.position width m 0)
+            (Recovery.Layout.position_qubit width m 0)).matrix environment.quantum)
+          (1 : UnitaryOperator Reference)).val
+            (Function.update row.1 (Recovery.Layout.position width m 0) outcome, row.2) column
+      else 0 := by
+  let hadamard : HilbertOperator ((Interface width m).register.prod Reference) :=
+    (UnitaryOperator.prodTensor
+      ((Gate.singleQubitAt (Interface width m).quantumLayout .empty Gate.HOp
+        (Recovery.Layout.position width m 0) (Recovery.Layout.position_qubit width m 0)).matrix
+          environment.quantum)
+      (1 : UnitaryOperator Reference)).val
+  have correctionSame :=
+    QuditShift.qubitShiftCircuit_matrix (Interface width m).quantumLayout
+      (Recovery.Layout.position width m 0) (Recovery.Layout.position_qubit width m 0) .empty
+        (-outcome) environment.quantum
+  have correctionTensor :=
+    congrArg (fun operator : UnitaryOperator (Interface width m).register =>
+      (UnitaryOperator.prodTensor operator (1 : UnitaryOperator Reference)).val) correctionSame
+  change ((UnitaryOperator.prodTensor
+    ((correction width m (.finite outcome)).matrix environment.quantum)
+      (1 : UnitaryOperator Reference)).val *
+    ZMeasurement.projector (R := (Interface width m).register.prod Reference)
+      (fun basis => basis.1 (Recovery.Layout.position width m 0)) outcome * hadamard) row
+        column = _
+  refine (congrArg (fun matrix : HilbertOperator ((Interface width m).register.prod Reference) =>
+    (matrix * ZMeasurement.projector (R := (Interface width m).register.prod Reference)
+      (fun basis => basis.1 (Recovery.Layout.position width m 0)) outcome * hadamard) row column)
+    correctionTensor).trans ?_
+  exact reset_operator_row (Interface width m).quantumLayout (Recovery.Layout.position width m 0)
+    Reference outcome hadamard row.1 row.2 column
+
 lemma readoutMatrix_entry (width m : Nat) (Reference : Register)
     (outcome : Fin ((Interface width m).quantumLayout.wire
       (Recovery.Layout.position width m 0)).dimension)
@@ -1062,36 +1101,7 @@ lemma readoutMatrix_entry (width m : Nat) (Reference : Register)
     exact outside_head_iff width m Reference rowControl columnControl rowMemory columnMemory
       rowBank columnBank
   change readoutMatrix (environment := environment) width m Reference outcome row column = _
-  let hadamard : HilbertOperator ((Interface width m).register.prod Reference) :=
-    (UnitaryOperator.prodTensor
-      ((Gate.singleQubitAt (Interface width m).quantumLayout .empty Gate.HOp
-        (Recovery.Layout.position width m 0) (Recovery.Layout.position_qubit width m 0)).matrix
-          environment.quantum)
-      (1 : UnitaryOperator Reference)).val
-  have correctionSame :=
-    QuditShift.qubitShiftCircuit_matrix (Interface width m).quantumLayout
-      (Recovery.Layout.position width m 0) (Recovery.Layout.position_qubit width m 0) .empty
-        (-outcome) environment.quantum
-  have correctionTensor :=
-    congrArg (fun operator : UnitaryOperator (Interface width m).register =>
-      (UnitaryOperator.prodTensor operator (1 : UnitaryOperator Reference)).val) correctionSame
-  have resetRow : readoutMatrix (environment := environment) width m Reference outcome row column =
-      if row.1 (Recovery.Layout.position width m 0) = 0 then
-        hadamard (Function.update row.1 (Recovery.Layout.position width m 0) outcome, row.2) column
-      else 0 := by
-    change ((UnitaryOperator.prodTensor
-      ((correction width m (.finite outcome)).matrix environment.quantum)
-        (1 : UnitaryOperator Reference)).val *
-      ZMeasurement.projector (R := (Interface width m).register.prod Reference)
-        (fun basis => basis.1 (Recovery.Layout.position width m 0)) outcome * hadamard) row
-          column = _
-    refine (congrArg (fun matrix : HilbertOperator ((Interface width m).register.prod Reference) =>
-      (matrix * ZMeasurement.projector (R := (Interface width m).register.prod Reference)
-        (fun basis => basis.1 (Recovery.Layout.position width m 0)) outcome * hadamard) row column)
-      correctionTensor).trans ?_
-    exact reset_operator_row (Interface width m).quantumLayout (Recovery.Layout.position width m 0)
-      Reference outcome hadamard row.1 row.2 column
-  refine resetRow.trans ?_
+  refine (readoutMatrix_reset_row width m Reference outcome row column).trans ?_
   by_cases zero : rowControl = 0
   · rw [if_pos (zeroIff.mpr zero)]
     change (UnitaryOperator.prodTensor
@@ -1107,7 +1117,9 @@ lemma readoutMatrix_entry (width m : Nat) (Reference : Register)
     · simp only [if_neg (fun same => spectators (outsideIff.mp same)), mul_zero]
       simp only [zero, true_and, if_neg spectators]
   · rw [if_neg (fun same => zero (zeroIff.mp same))]
-    simp only [zero, false_and, if_false]
+    have blocked : ¬(rowControl = 0 ∧ rowMemory = columnMemory ∧
+      rowBank = columnBank) := fun accepted => zero accepted.1
+    rw [if_neg blocked]
 
 end
 

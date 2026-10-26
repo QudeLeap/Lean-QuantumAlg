@@ -12,7 +12,7 @@ import all QuantumAlg.Algorithms.Factoring.EkeraHastadStyle.StoreMachine.Recover
 # Terminal-pair alignment for batch recovery
 
 This module aligns an indexed family of literal pair machines with the exact
-unordered-pair enumeration of sixteen retained terminal cells.  The value
+unordered-pair enumeration of retained terminal cells.  The value
 lemmas keep the early-factor priority of one shared prepared residue explicit.
 -/
 
@@ -29,23 +29,27 @@ open ClassicalRoutines
 
 noncomputable section
 
+variable {additionalMembers : Nat}
+
 /-- The retained terminal cells in measurement order. -/
-abbrev Terminals {kind : ProblemKind} (ctx : RuntimeCtx kind) (N : Nat) :=
-  Fin 16 → CInputRef ctx (.bits (measurementBits N))
+abbrev Terminals {kind : ProblemKind} (ctx : RuntimeCtx kind) (N : Nat)
+    (additionalMembers : Nat := 14) :=
+  Fin (additionalMembers + 2) → CInputRef ctx (.bits (measurementBits N))
 
 /-- The exact unordered-pair vector of retained terminal cells. -/
 def terminalPairs {kind : ProblemKind} {ctx : RuntimeCtx kind} {N : Nat}
-    (terminals : Terminals ctx N) :
+    (terminals : Terminals ctx N additionalMembers) :
     List.Vector
       (CInputRef ctx (.bits (measurementBits N)) ×
         CInputRef ctx (.bits (measurementBits N)))
-      LatticePairRecoveryFold.PairCount :=
+      (LatticePairRecoveryFold.PairCount additionalMembers) :=
   (List.Vector.ofFn terminals).unorderedPairs
 
 /-- The two terminal inputs of every literal pair slot are the corresponding
 entry of the canonical unordered-pair vector. -/
 structure Aligned {kind : ProblemKind} {ctx : RuntimeCtx kind} {N : Nat}
-    (refs : LatticePairRecoveryFold.Refs ctx N) (terminals : Terminals ctx N) : Prop where
+    (refs : LatticePairRecoveryFold.Refs ctx N additionalMembers) (terminals : Terminals ctx N
+      additionalMembers) : Prop where
   first : ∀ index, LatticePairReusableRecovery.firstTerminal (refs.pair index) =
     ((terminalPairs terminals).get index).1
   second : ∀ index, LatticePairReusableRecovery.secondTerminal (refs.pair index) =
@@ -61,9 +65,9 @@ def terminalSample {kind : ProblemKind} {ctx : RuntimeCtx kind} (N : Nat)
 
 /-- Pure factor option at one canonical unordered-pair index. -/
 def terminalPairValue {kind : ProblemKind} {ctx : RuntimeCtx kind} {N : Nat}
-    (generator : (ZMod N)ˣ) (terminals : Terminals ctx N)
+    (generator : (ZMod N)ˣ) (terminals : Terminals ctx N additionalMembers)
     (before : Store ctx)
-    (index : Fin LatticePairRecoveryFold.PairCount) : Option Nat :=
+    (index : Fin (LatticePairRecoveryFold.PairCount additionalMembers)) : Option Nat :=
   let pair := (terminalPairs terminals).get index
   RSA.recoverFactorFromShortLogPair (shortLogBits N) (tradeoffBits N) generator
     (terminalSample N before pair.1, terminalSample N before pair.2)
@@ -71,9 +75,10 @@ def terminalPairValue {kind : ProblemKind} {ctx : RuntimeCtx kind} {N : Nat}
 /-- One aligned machine slot reads exactly its canonical terminal pair. -/
 lemma pairValue_eq_terminalPairValue {kind : ProblemKind}
     {ctx : RuntimeCtx kind} {N : Nat} (generator : (ZMod N)ˣ)
-    (refs : LatticePairRecoveryFold.Refs ctx N) (terminals : Terminals ctx N)
+    (refs : LatticePairRecoveryFold.Refs ctx N additionalMembers) (terminals : Terminals ctx N
+      additionalMembers)
     (aligned : Aligned refs terminals) (before : Store ctx)
-    (index : Fin LatticePairRecoveryFold.PairCount) :
+    (index : Fin (LatticePairRecoveryFold.PairCount additionalMembers)) :
     LatticePairRecoveryFold.pairValue generator refs before index =
       terminalPairValue generator terminals before index := by
   unfold LatticePairRecoveryFold.pairValue terminalPairValue
@@ -93,7 +98,8 @@ lemma pairValue_eq_terminalPairValue {kind : ProblemKind}
 /-- The machine-indexed value list is the canonical terminal-pair value list. -/
 lemma pairValues_eq_terminalPairValues {kind : ProblemKind}
     {ctx : RuntimeCtx kind} {N : Nat} (generator : (ZMod N)ˣ)
-    (refs : LatticePairRecoveryFold.Refs ctx N) (terminals : Terminals ctx N)
+    (refs : LatticePairRecoveryFold.Refs ctx N additionalMembers) (terminals : Terminals ctx N
+      additionalMembers)
     (aligned : Aligned refs terminals) (before : Store ctx) :
     List.ofFn (LatticePairRecoveryFold.pairValue generator refs before) =
       List.ofFn (terminalPairValue generator terminals before) := by
@@ -104,12 +110,12 @@ lemma pairValues_eq_terminalPairValues {kind : ProblemKind}
   simp only [List.Vector.get_ofFn]
   exact pairValue_eq_terminalPairValue generator refs terminals aligned before index
 
-/-- Seal the same prepared residue around all sixteen retained terminal cells. -/
+/-- Seal the same prepared residue around all retained terminal cells. -/
 def preparedSamples {kind : ProblemKind} {ctx : RuntimeCtx kind} {N : Nat}
-    (prepared : RSA.PreparedResidue N) (terminals : Terminals ctx N)
+    (prepared : RSA.PreparedResidue N) (terminals : Terminals ctx N additionalMembers)
     (before : Store ctx) :
     List.Vector
-      (BatchRecovery.PreparedSample N (shortLogBits N) (tradeoffBits N)) 16 :=
+      (BatchRecovery.PreparedSample N (shortLogBits N) (tradeoffBits N)) (additionalMembers + 2) :=
   (List.Vector.ofFn terminals).map fun terminal =>
     { prepared := prepared
       terminalBits := BatchMachine.sourceBits N before terminal }
@@ -117,9 +123,9 @@ def preparedSamples {kind : ProblemKind} {ctx : RuntimeCtx kind} {N : Nat}
 /-- One shared prepared residue keeps its early factor ahead of the indexed
 short-log factor option. -/
 def preparedPairValue {kind : ProblemKind} {ctx : RuntimeCtx kind} {N : Nat}
-    (prepared : RSA.PreparedResidue N) (terminals : Terminals ctx N)
+    (prepared : RSA.PreparedResidue N) (terminals : Terminals ctx N additionalMembers)
     (before : Store ctx)
-    (index : Fin LatticePairRecoveryFold.PairCount) : Option Nat :=
+    (index : Fin (LatticePairRecoveryFold.PairCount additionalMembers)) : Option Nat :=
   prepared.earlyFactor.orElse fun _ =>
     terminalPairValue prepared.unit terminals before index
 
@@ -127,7 +133,7 @@ def preparedPairValue {kind : ProblemKind} {ctx : RuntimeCtx kind} {N : Nat}
 canonical pair order and early-factor priority. -/
 lemma batchPairValues_preparedSamples {kind : ProblemKind}
     {ctx : RuntimeCtx kind} {N : Nat} (prepared : RSA.PreparedResidue N)
-    (terminals : Terminals ctx N) (before : Store ctx) :
+    (terminals : Terminals ctx N additionalMembers) (before : Store ctx) :
     BatchRecovery.batchPairValues N (shortLogBits N) (tradeoffBits N)
         (preparedSamples prepared terminals before) =
       List.ofFn (preparedPairValue prepared terminals before) := by
@@ -148,7 +154,7 @@ lemma batchPairValues_preparedSamples {kind : ProblemKind}
 
 private lemma preparedPairValues_eq_map {kind : ProblemKind}
     {ctx : RuntimeCtx kind} {N : Nat} (prepared : RSA.PreparedResidue N)
-    (terminals : Terminals ctx N) (before : Store ctx) :
+    (terminals : Terminals ctx N additionalMembers) (before : Store ctx) :
     List.ofFn (preparedPairValue prepared terminals before) =
       (List.ofFn (terminalPairValue prepared.unit terminals before)).map
         (fun candidate => prepared.earlyFactor.orElse fun _ => candidate) := by
@@ -214,7 +220,8 @@ private lemma fold_sharedEarly_eq_firstSuccessful
 machine fold is exactly the pure fixed-batch value. -/
 lemma selectedFold_eq_batchValue {kind : ProblemKind}
     {ctx : RuntimeCtx kind} {N : Nat} (prepared : RSA.PreparedResidue N)
-    (refs : LatticePairRecoveryFold.Refs ctx N) (terminals : Terminals ctx N)
+    (refs : LatticePairRecoveryFold.Refs ctx N additionalMembers) (terminals : Terminals ctx N
+      additionalMembers)
     (aligned : Aligned refs terminals) (before : Store ctx) :
     (List.ofFn
         (LatticePairRecoveryFold.pairValue prepared.unit refs before)).foldl
@@ -225,8 +232,8 @@ lemma selectedFold_eq_batchValue {kind : ProblemKind}
   unfold BatchRecovery.batchValue
   rw [batchPairValues_preparedSamples, preparedPairValues_eq_map]
   apply fold_sharedEarly_eq_firstSuccessful
-  let zero : Fin LatticePairRecoveryFold.PairCount :=
-    ⟨0, by norm_num [LatticePairRecoveryFold.PairCount, Nat.choose]⟩
+  let zero : Fin (LatticePairRecoveryFold.PairCount additionalMembers) :=
+    ⟨0, Nat.choose_pos (by omega)⟩
   have member : terminalPairValue prepared.unit terminals before zero ∈
       List.ofFn (terminalPairValue prepared.unit terminals before) := by
     exact List.mem_ofFn.mpr ⟨zero, rfl⟩

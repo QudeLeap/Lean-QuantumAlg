@@ -63,6 +63,7 @@ variable {allowAllocation : Bool}
       (List.ofFn (fun index : Fin count => body.eventTrace (path index))).flatten
   | .workspace _ _ _ _ body, path => body.eventTrace path
   | .embed _ body, path => body.eventTrace path
+  | .ownedLayoutView _ body, path => body.eventTrace path
   | .parallelClassical (operations := operations) join _ first second, path =>
       (first.eventTrace path.1).map (Resource.Event.serviceClassicalLeft join operations) ++
         (second.eventTrace path.2).map (Resource.Event.serviceClassicalRight join operations)
@@ -110,6 +111,7 @@ public def visitedContexts {allowAllocation : Bool}
       ctx :: (List.ofFn (fun index : Fin count => body.visitedContexts (path index))).flatten
   | .workspace ctx _ _ _ body, path => ctx :: body.visitedContexts path ++ [ctx]
   | .embed (caller := caller) _ _, _ => [caller]
+  | .ownedLayoutView (original := original) _ _, _ => [original]
   | .parallelClassical (left := left) (right := right) _ separate _ _, _ =>
       [left.disjointUnion right separate]
   | .parallelQuantum (left := left) (right := right) _ separate _ _, _ =>
@@ -153,6 +155,7 @@ public def eventDepth {allowAllocation : Bool}
       .indexedProduct "circuit-iteration" count .id (fun index => body.eventDepth (path index))
   | .workspace _ _ _ _ body, path => body.eventDepth path
   | .embed _ body, path => body.eventDepth path
+  | .ownedLayoutView _ body, path => body.eventDepth path
   | .parallelClassical (operations := operations) join _ first second, path =>
       .tensor
         (DepthExpr.mapSchedule false (Resource.Event.serviceClassicalLeft join operations)

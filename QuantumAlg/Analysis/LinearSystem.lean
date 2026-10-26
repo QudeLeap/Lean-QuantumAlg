@@ -15,8 +15,8 @@ import all QuantumAlg.Core.Base.Gate.Unitary
 import all QuantumAlg.Core.Base.Tensor.Basic
 import all QuantumAlg.Core.Base.Tensor.Certified
 import all QuantumAlg.Util.FinPow
-public import QuantumAlg.Analysis.HamiltonianSimulation
-import all QuantumAlg.Analysis.HamiltonianSimulation
+public import QuantumAlg.Components.Oracle.TimeEvolution
+import all QuantumAlg.Components.Oracle.TimeEvolution
 public import Mathlib.Analysis.SpecialFunctions.Trigonometric.Inverse
 
 /-!

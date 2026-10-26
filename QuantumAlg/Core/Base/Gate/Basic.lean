@@ -39,6 +39,12 @@ def applyVec (A : HilbertOperator R) (ψ : HilbertVector R) : HilbertVector R :=
 lemma applyVec_apply (A : HilbertOperator R) (ψ : HilbertVector R) (i : R.Index) :
     applyVec A ψ i = ∑ j, A i j * ψ j := rfl
 
+/-- Every linear Hilbert operator annihilates the zero vector. -/
+lemma applyVec_zero (matrix : HilbertOperator R) :
+    matrix.applyVec 0 = 0 := by
+  ext index
+  simp [HilbertOperator.applyVec_apply]
+
 @[simp]
 lemma applyVec_add (A : HilbertOperator R) (ψ φ : HilbertVector R) :
     applyVec A (ψ + φ) = applyVec A ψ + applyVec A φ := by

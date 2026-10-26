@@ -30,17 +30,6 @@ local macro "pauliConjFinish" : tactic =>
       ring_nf <;>
       norm_num))
 
-local macro "pauliMemFinish" : tactic =>
-  `(tactic|
-    (simp only [signedRawPauliSet, Set.mem_ofPred_eq]
-     first
-     | left; pauliConjFinish; done
-     | right; left; pauliConjFinish; done
-     | right; right; left; pauliConjFinish; done
-     | right; right; right; left; pauliConjFinish; done
-     | right; right; right; right; left; pauliConjFinish; done
-     | right; right; right; right; right; pauliConjFinish; done))
-
 set_option maxHeartbeats 8000000 in
 -- Exhaustive Pauli-Z conjugation over the sixteen half-coordinate codes needs this local budget.
 lemma half (negative : Fin 4 → Bool) :
@@ -48,7 +37,23 @@ lemma half (negative : Fin 4 → Bool) :
       signedRawPauliSet := by
   by_cases h0 : negative 0 <;> by_cases h1 : negative 1 <;>
     by_cases h2 : negative 2 <;> by_cases h3 : negative 3 <;>
-      pauliMemFinish
+      simp only [signedRawPauliSet, Set.mem_ofPred_eq]
+  · right; right; left; pauliConjFinish
+  · right; left; pauliConjFinish
+  · left; pauliConjFinish
+  · right; right; right; left; pauliConjFinish
+  · right; left; pauliConjFinish
+  · right; right; right; left; pauliConjFinish
+  · right; right; left; pauliConjFinish
+  · left; pauliConjFinish
+  · left; pauliConjFinish
+  · right; right; left; pauliConjFinish
+  · right; right; right; left; pauliConjFinish
+  · right; left; pauliConjFinish
+  · right; right; right; left; pauliConjFinish
+  · left; pauliConjFinish
+  · right; left; pauliConjFinish
+  · right; right; left; pauliConjFinish
 
 end QuantumAlg.QubitTwoDesign.PauliNormalizer.Z
 

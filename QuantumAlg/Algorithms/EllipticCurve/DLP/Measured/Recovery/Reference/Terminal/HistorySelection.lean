@@ -146,7 +146,7 @@ lemma execute_selectHistory {model : ExecutionModel}
         (fun record => read record.1.2) selected).mapHistory _ = _
       rw [State.selectHistory_measureZ state wire output (fun record => read record.2) selected]
   | classical | classicalQuery | retain | prepareZero | workspace
-  | embed | parallelClassical | parallelQuantum => exact False.elim supported
+  | embed | ownedLayoutView | parallelClassical | parallelQuantum => exact False.elim supported
   | seq first second firstIH secondIH =>
       rw [Circuit.execute_seq, State.selectHistory_mapHistory]
       erw [secondIH supported.2 Reference (first.execute environment Reference state)

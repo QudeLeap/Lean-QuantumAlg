@@ -12,7 +12,7 @@ import all QuantumAlg.Core.Execution.Classical.Composition.Range
 /-!
 # Fixed unordered-pair recovery fold
 
-The sixteen terminal results determine `choose 16 2` pair invocations.  This
+A batch of `additionalMembers + 2` terminal results determines every unordered pair.  This
 module folds an indexed family of literal reusable pair machines while keeping
 their persistent entry data and all not-yet-consumed terminal bits live.
 -/
@@ -30,19 +30,23 @@ open ClassicalRoutines
 
 noncomputable section
 
+variable {additionalMembers : Nat}
+
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
-/-- Exact number of unordered pairs in the fixed sixteen-sample batch. -/
-@[implicit_reducible] def PairCount : Nat := Nat.choose 16 2
+/-- Exact number of unordered pairs in a batch of at least two members. -/
+@[implicit_reducible] def PairCount (additionalMembers : Nat := 14) : Nat :=
+  Nat.choose (additionalMembers + 2) 2
 
 /-- Width of the persistent factor selector shared by every pair. -/
 abbrev FactorWidth (N : Nat) : Nat :=
   QuadraticCandidateCheck.CandidateWidth (LatticePairCandidateRecovery.Width N)
 
 /-- An indexed family of pair machines sharing one persistent factor selector. -/
-structure Refs {kind : ProblemKind} (ctx : RuntimeCtx kind) (N : Nat) where
+structure Refs {kind : ProblemKind} (ctx : RuntimeCtx kind) (N : Nat)
+    (additionalMembers : Nat := 14) where
   /-- Nested references for the pair stage. -/
-  pair : Fin PairCount → LatticePairFactorRecovery.Refs ctx N
+  pair : Fin (PairCount additionalMembers) → LatticePairFactorRecovery.Refs ctx N
   /-- Nested references for the factor selection stage. -/
   factorSelection : FirstAccepted.Refs ctx (FactorWidth N)
   sharedFactorSelection : ∀ index,
@@ -80,7 +84,7 @@ structure SourceFrameAvoids {kind : ProblemKind} {ctx : RuntimeCtx kind}
 
 /-- Per-pair local certificates and complete cross-pair frame conditions. -/
 structure Separation {kind : ProblemKind} {ctx : RuntimeCtx kind} {N : Nat}
-    (refs : Refs ctx N) : Prop where
+    (refs : Refs ctx N additionalMembers) : Prop where
   each : ∀ index, LatticePairReusableRecovery.Separation (refs.pair index)
   initialFrames : ∀ current target,
     InitialFrameAvoids (refs.pair current) (refs.pair target)
@@ -89,20 +93,20 @@ structure Separation {kind : ProblemKind} {ctx : RuntimeCtx kind} {N : Nat}
 
 /-- One arbitrary caller read avoids every pair invocation. -/
 def CallerFrameAvoids {kind : ProblemKind} {ctx : RuntimeCtx kind} {N : Nat}
-    (refs : Refs ctx N) {shape : CShape} (other : CInputRef ctx shape) : Prop :=
+    (refs : Refs ctx N additionalMembers) {shape : CShape} (other : CInputRef ctx shape) : Prop :=
   ∀ index, LatticePairReusableRecovery.CallerFrameAvoids (refs.pair index) other
 
 /-- All indexed machines have their persistent entry facts. -/
 def InitialConditions {kind : ProblemKind} {ctx : RuntimeCtx kind} {N : Nat}
     (input : Input N) (generator : (ZMod N)ˣ)
-    (before : Store ctx) (refs : Refs ctx N) : Prop :=
+    (before : Store ctx) (refs : Refs ctx N additionalMembers) : Prop :=
   ∀ index, LatticePairReusableRecovery.InitialConditions
     input generator before (refs.pair index)
 
 /-- Pure factor option recovered by one indexed pair. -/
 def pairValue {kind : ProblemKind} {ctx : RuntimeCtx kind} {N : Nat}
-    (generator : (ZMod N)ˣ) (refs : Refs ctx N)
-    (before : Store ctx) (index : Fin PairCount) : Option Nat :=
+    (generator : (ZMod N)ˣ) (refs : Refs ctx N additionalMembers)
+    (before : Store ctx) (index : Fin (PairCount additionalMembers)) : Option Nat :=
   RSA.recoverFactorFromShortLogPair (shortLogBits N) (tradeoffBits N) generator
     (LatticePairNearestPlaneSavedTarget.sourceSamples
       (refs.pair index).pair.pair before)
@@ -112,19 +116,19 @@ variable {model : ExecutionModel}
   {ctx : RuntimeCtx model.kind} {N : Nat}
 
 /-- Execute every indexed pair in canonical finite order, including after the first success. -/
-def into (input : Input N) (refs : Refs ctx N) : Circuit model ctx ctx :=
-  Circuit.forRange PairCount fun index =>
+def into (input : Input N) (refs : Refs ctx N additionalMembers) : Circuit model ctx ctx :=
+  Circuit.forRange (PairCount additionalMembers) fun index =>
     LatticePairReusableRecovery.into input (refs.pair index)
 
 /-- The mathematical sequence record follows the complete store through every actual pair. -/
-noncomputable def step (input : Input N) (refs : Refs ctx N) (store : Store ctx) :
+noncomputable def step (input : Input N) (refs : Refs ctx N additionalMembers) (store : Store ctx) :
     Store ctx × (into input refs).Path :=
-  Circuit.forRangeStoreRecord PairCount
+  Circuit.forRangeStoreRecord (PairCount additionalMembers)
     (fun index => LatticePairReusableRecovery.into input (refs.pair index))
     (fun index => LatticePairReusableRecovery.step input (refs.pair index)) store
 
 /-- All actual pair updates occur in increasing finite-index order. -/
-lemma step_store (input : Input N) (refs : Refs ctx N) (store : Store ctx) :
+lemma step_store (input : Input N) (refs : Refs ctx N additionalMembers) (store : Store ctx) :
     (step input refs store).1 =
       (List.ofFn (fun index => fun current =>
         (LatticePairReusableRecovery.step input (refs.pair index) current).1)).foldl
@@ -132,7 +136,7 @@ lemma step_store (input : Input N) (refs : Refs ctx N) (store : Store ctx) :
   Circuit.forRangeStoreRecord_store _ _ _ store
 
 /-- The indexed record is the complete actual execution, including all histories and references. -/
-lemma into_execute (input : Input N) (refs : Refs ctx N) (Reference : Register)
+lemma into_execute (input : Input N) (refs : Refs ctx N additionalMembers) (Reference : Register)
     {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
     (into input refs).execute environment Reference state = state.mapClassical (fun entry =>
@@ -212,15 +216,16 @@ private lemma sourceSamples_frame (input : Input N)
   rw [firstBits, secondBits]
 
 /-- Persistent initial facts and all original source pairs survive every prefix. -/
-private def Invariant (input : Input N) (generator : (ZMod N)ˣ) (refs : Refs ctx N)
+private def Invariant (input : Input N) (generator : (ZMod N)ˣ) (refs : Refs ctx N
+  additionalMembers)
     (source current : Store ctx) : Prop :=
   InitialConditions input generator current refs ∧
     ∀ index, LatticePairNearestPlaneSavedTarget.sourceSamples (refs.pair index).pair.pair current =
       LatticePairNearestPlaneSavedTarget.sourceSamples (refs.pair index).pair.pair source
 
 private lemma slot_correct (input : Input N) (generator : (ZMod N)ˣ)
-    (refs : Refs ctx N) (separation : Separation refs) (source : Store ctx)
-    (index : Fin PairCount) (store : Store ctx)
+    (refs : Refs ctx N additionalMembers) (separation : Separation refs) (source : Store ctx)
+    (index : Fin (PairCount additionalMembers)) (store : Store ctx)
     (invariant : Invariant input generator refs source store) :
     Invariant input generator refs source
         (LatticePairReusableRecovery.step input (refs.pair index) store).1 ∧
@@ -279,15 +284,15 @@ private lemma forRange_frame (count : Nat) (body : Fin count → Circuit model c
         (fun index => frames index.succ) (records 0 store).1).trans (frames 0 store)
 
 /-- Every caller read outside every pair body survives without numerical initial premises. -/
-lemma into_callerFrame (input : Input N) (refs : Refs ctx N) (store : Store ctx)
+lemma into_callerFrame (input : Input N) (refs : Refs ctx N additionalMembers) (store : Store ctx)
     {shape : CShape} (other : CInputRef ctx shape) (avoids : CallerFrameAvoids refs other) :
     (step input refs store).1.read other = store.read other :=
-  forRange_frame PairCount _ _ other
+  forRange_frame (PairCount additionalMembers) _ _ other
     (fun index current => LatticePairReusableRecovery.into_callerFrame input (refs.pair index)
       current other (avoids index)) store
 
 /-- Exact first-success fold, preserved persistent inputs, and complete caller frame. -/
-structure Relation (input : Input N) (generator : (ZMod N)ˣ) (refs : Refs ctx N)
+structure Relation (input : Input N) (generator : (ZMod N)ˣ) (refs : Refs ctx N additionalMembers)
     (before after : Store ctx) : Prop where
   initial : InitialConditions input generator after refs
   sources : ∀ index,
@@ -300,61 +305,67 @@ structure Relation (input : Input N) (generator : (ZMod N)ˣ) (refs : Refs ctx N
     CallerFrameAvoids refs other → after.read other = before.read other
 
 /-- Every literal pair executes and contributes its original source option in canonical order. -/
-lemma into_correct (input : Input N) (generator : (ZMod N)ˣ) (refs : Refs ctx N)
+lemma into_correct (input : Input N) (generator : (ZMod N)ˣ) (refs : Refs ctx N additionalMembers)
     (separation : Separation refs) (store : Store ctx)
     (initial : InitialConditions input generator store refs) :
     Relation input generator refs store (step input refs store).1 := by
   have folded := forRange_invariant_fold (Invariant input generator refs store)
-    (QuadraticCandidateSelect.selectedOption refs.factorSelection) PairCount
+    (QuadraticCandidateSelect.selectedOption refs.factorSelection) (PairCount additionalMembers)
     (fun index => LatticePairReusableRecovery.into input (refs.pair index))
     (fun index => LatticePairReusableRecovery.step input (refs.pair index))
     (pairValue generator refs store) (slot_correct input generator refs separation store)
     store ⟨initial, fun _ => rfl⟩
   exact ⟨folded.1.1, folded.1.2, folded.2, into_callerFrame input refs store⟩
 
-/-- The independent allowance pays for all 120 complete reusable pair invocations. -/
-def eventEnvelope (N : Nat) : ResourcePool model :=
-  ResourcePool.scale PairCount (LatticePairReusableRecovery.eventEnvelope N)
+/-- The independent allowance pays for all complete reusable pair invocations. -/
+def eventEnvelope (N : Nat) (additionalMembers : Nat := 14) : ResourcePool model :=
+  ResourcePool.scale (PairCount additionalMembers) (LatticePairReusableRecovery.eventEnvelope N)
 
 /-- The independent sequential depth includes every pair, even after an earlier success. -/
-def depthBound (N : Nat) : Nat := PairCount * LatticePairReusableRecovery.depthBound N
+def depthBound (N : Nat) (additionalMembers : Nat := 14) : Nat := (PairCount additionalMembers)
+  * LatticePairReusableRecovery.depthBound N
 
 /-- Every actual native coordinate meets the independent full-batch allowance. -/
-lemma into_pool_le (input : Input N) (refs : Refs ctx N) (path : (into input refs).Path) :
-    (into input refs).resourcePool path ≤ eventEnvelope N := by
+lemma into_pool_le (input : Input N) (refs : Refs ctx N additionalMembers) (path : (into input
+  refs).Path) :
+    (into input refs).resourcePool path ≤ eventEnvelope N additionalMembers := by
   unfold into at path ⊢
   unfold eventEnvelope
   with_reducible
-    exact Circuit.forRange_pool_le PairCount _ _
+    exact Circuit.forRange_pool_le (PairCount additionalMembers) _ _
       (fun index => LatticePairReusableRecovery.into_pool_le input (refs.pair index)) path
 
 /-- The actual complete ordered path meets the independent batch depth bound. -/
-lemma into_depth_le (input : Input N) (refs : Refs ctx N) (path : (into input refs).Path) :
-    (into input refs).depth (fun _ => 1) path ≤ depthBound N :=
-  Circuit.forRange_depth_le PairCount _ _
+lemma into_depth_le (input : Input N) (refs : Refs ctx N additionalMembers) (path : (into input
+  refs).Path) :
+    (into input refs).depth (fun _ => 1) path ≤ depthBound N additionalMembers :=
+  Circuit.forRange_depth_le (PairCount additionalMembers) _ _
     (fun index => LatticePairReusableRecovery.into_depth_le input (refs.pair index)) path
 
 /-- Reuse keeps the resident peak at the context plus the actual native-power scope. -/
-lemma into_resident_le (input : Input N) (refs : Refs ctx N) (path : (into input refs).Path) :
+lemma into_resident_le (input : Input N) (refs : Refs ctx N additionalMembers) (path : (into
+  input refs).Path) :
     (into input refs).peakResidentSpace path ≤
       ctx.residentSpace + Modular.NativePower.powerSpace model.kind (modulusBits N) :=
-  Circuit.forRange_resident_le PairCount _ _ (le_add_of_nonneg_right zero_le)
+  Circuit.forRange_resident_le (PairCount additionalMembers) _ _ (le_add_of_nonneg_right zero_le)
     (fun index => LatticePairReusableRecovery.into_resident_le input (refs.pair index)) path
 
 /-- Auxiliary accounting follows the same actual reusable scope through every pair. -/
-lemma into_auxiliary_le (input : Input N) (refs : Refs ctx N) (path : (into input refs).Path) :
+lemma into_auxiliary_le (input : Input N) (refs : Refs ctx N additionalMembers) (path : (into
+  input refs).Path) :
     (into input refs).peakAuxiliarySpace path ≤
       ctx.auxiliarySpace + Modular.NativePower.powerSpace model.kind (modulusBits N) :=
-  Circuit.forRange_auxiliary_le PairCount _ _ (le_add_of_nonneg_right zero_le)
+  Circuit.forRange_auxiliary_le (PairCount additionalMembers) _ _ (le_add_of_nonneg_right zero_le)
     (fun index => LatticePairReusableRecovery.into_auxiliary_le input (refs.pair index)) path
 
 /-- All pairs jointly restore borrowed systems in the presence of arbitrary external references. -/
-lemma into_borrowedRestored (input : Input N) (refs : Refs ctx N) (Reference : Register)
+lemma into_borrowedRestored (input : Input N) (refs : Refs ctx N additionalMembers) (Reference :
+  Register)
     {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
     (into input refs).BorrowedRestored Reference state
       ((into input refs).execute environment Reference state) :=
-  Circuit.forRange_borrowedRestored PairCount _ environment Reference
+  Circuit.forRange_borrowedRestored (PairCount additionalMembers) _ environment Reference
     (fun index =>
       LatticePairReusableRecovery.into_borrowedRestored input (refs.pair index) Reference)
     state

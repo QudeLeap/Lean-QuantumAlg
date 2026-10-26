@@ -279,7 +279,7 @@ lemma borrowedQuantumWires_preserved {model : ExecutionModel} {pre post : Runtim
         pre.borrowedQuantumWires := by
   induction code with
   | id | classical | classicalQuery | unitary | measureZ | iterate | workspace
-  | embed | parallelClassical | parallelQuantum => rfl
+  | embed | ownedLayoutView | parallelClassical | parallelQuantum => rfl
   | retain ctx key shape fresh => exact ctx.borrowedQuantumWires_addRetained key shape fresh
   | prepareZero ctx key layout fresh disjoint =>
       exact ctx.borrowedQuantumWires_addOwnedLayout key layout fresh disjoint

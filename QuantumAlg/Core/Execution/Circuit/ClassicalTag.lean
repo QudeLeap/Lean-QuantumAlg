@@ -6,6 +6,8 @@ Authors: QudeLeap Team
 
 module
 
+import all QuantumAlg.Core.Execution.Context.OwnedLayoutView.Laws
+
 import all QuantumAlg.Core.Execution.Circuit.ClassicalTag.Control
 import all QuantumAlg.Core.Execution.Circuit.Reference
 import all QuantumAlg.Core.Execution.Circuit.Allocation
@@ -69,6 +71,11 @@ private lemma execute_decodeReferenceTag_of_fixed
           body.execute_mapHistory environment Reference original update)
         (fun {_ _} basis {_} _ original =>
           body.execute_referenceReindex environment basis original) state
+  | ownedLayoutView view body bodyIH =>
+      change view.join (body.execute environment Reference
+        (view.split (State.decodeOracleTag state))) = _
+      rw [view.split_decodeOracleTag, bodyIH environment rfl, view.join_decodeExecutionTag]
+      rfl
   | parallelClassical join separate first second firstIH secondIH =>
       exact parallelPreserving_tagNatural join separate
         (fun Reference {_} _ original => interpret first

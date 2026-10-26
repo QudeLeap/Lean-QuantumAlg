@@ -13,7 +13,7 @@ import all QuantumAlg.Algorithms.Factoring.EkeraHastadStyle.StoreMachine.Recover
 # Physical references for the reusable pair fold
 
 This module indexes one reusable physical pair workspace by the canonical
-unordered pairs of sixteen retained terminal cells.  It proves that structural
+unordered pairs of configured retained terminal cells.  It proves that structural
 transport commutes with the pair enumeration and closes the fold alignment.
 -/
 
@@ -31,18 +31,20 @@ open ClassicalRoutines
 
 noncomputable section
 
+variable {additionalMembers : Nat}
+
 /-- Transport all retained terminal cells into the reusable pair scope. -/
 def liftTerminals {kind : ProblemKind} {outer ctx : RuntimeCtx kind} {N : Nat}
     (transport : Transport outer ctx)
-    (terminals : LatticePairRecoveryBatch.Terminals outer N) :
-    LatticePairRecoveryBatch.Terminals ctx N :=
+    (terminals : LatticePairRecoveryBatch.Terminals outer N additionalMembers) :
+    LatticePairRecoveryBatch.Terminals ctx N additionalMembers :=
   fun index => transport.liftInput (terminals index)
 
 /-- Transport commutes with the canonical unordered-pair enumeration. -/
 lemma terminalPairs_lift {kind : ProblemKind}
     {outer ctx : RuntimeCtx kind} {N : Nat}
     (transport : Transport outer ctx)
-    (terminals : LatticePairRecoveryBatch.Terminals outer N) :
+    (terminals : LatticePairRecoveryBatch.Terminals outer N additionalMembers) :
     LatticePairRecoveryBatch.terminalPairs
         (liftTerminals transport terminals) =
       (LatticePairRecoveryBatch.terminalPairs terminals).map fun pair =>
@@ -64,9 +66,9 @@ def refs {kind : ProblemKind} {outer ctx : RuntimeCtx kind} {N : Nat}
     (transport : Transport outer ctx)
     (cells : LatticePairFactorWorkspaceSeparation.Cells ctx N)
     (selection : FirstAccepted.Refs outer (QuadraticScratchLayout.CandidateWidth N))
-    (terminals : LatticePairRecoveryBatch.Terminals outer N)
+    (terminals : LatticePairRecoveryBatch.Terminals outer N additionalMembers)
     (parameter : CInputRef outer (ParameterShape N)) :
-    LatticePairRecoveryFold.Refs ctx N where
+    LatticePairRecoveryFold.Refs ctx N additionalMembers where
   pair index :=
     let pair := (LatticePairRecoveryBatch.terminalPairs terminals).get index
     LatticePairFactorWorkspaceSeparation.refs transport cells selection pair.1 pair.2
@@ -80,7 +82,7 @@ lemma aligned {kind : ProblemKind} {outer ctx : RuntimeCtx kind} {N : Nat}
     (transport : Transport outer ctx)
     (cells : LatticePairFactorWorkspaceSeparation.Cells ctx N)
     (selection : FirstAccepted.Refs outer (QuadraticScratchLayout.CandidateWidth N))
-    (terminals : LatticePairRecoveryBatch.Terminals outer N)
+    (terminals : LatticePairRecoveryBatch.Terminals outer N additionalMembers)
     (parameter : CInputRef outer (ParameterShape N)) :
     LatticePairRecoveryBatch.Aligned
       (refs transport cells selection terminals parameter)
@@ -101,7 +103,7 @@ lemma aligned {kind : ProblemKind} {outer ctx : RuntimeCtx kind} {N : Nat}
 structure FactorFrameAvoids {kind : ProblemKind}
     {outer : RuntimeCtx kind} {N : Nat}
     (selection : FirstAccepted.Refs outer (QuadraticScratchLayout.CandidateWidth N))
-    (terminals : LatticePairRecoveryBatch.Terminals outer N)
+    (terminals : LatticePairRecoveryBatch.Terminals outer N additionalMembers)
     (parameter : CInputRef outer (ParameterShape N)) : Prop where
   parameter : ∀ cell, QuadraticCheckSeparation.factorKey selection cell ∉ parameter.storageKeys
   first : ∀ index cell, QuadraticCheckSeparation.factorKey selection cell ∉
@@ -289,7 +291,7 @@ lemma separation {kind : ProblemKind}
       LatticePairFactorWorkspaceSeparation.Certificates transport cells)
     (selection : FirstAccepted.Refs outer (QuadraticScratchLayout.CandidateWidth N))
     (selectorSeparated : LatticePairFactorWorkspaceSeparation.SelectorSeparation selection)
-    (terminals : LatticePairRecoveryBatch.Terminals outer N)
+    (terminals : LatticePairRecoveryBatch.Terminals outer N additionalMembers)
     (parameter : CInputRef outer (ParameterShape N))
     (factorFrames : FactorFrameAvoids selection terminals parameter) :
     LatticePairRecoveryFold.Separation

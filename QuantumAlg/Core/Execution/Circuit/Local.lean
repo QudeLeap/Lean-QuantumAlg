@@ -35,6 +35,7 @@ public def IsLocal : {allowAllocation : Bool} → {model : ExecutionModel} → {
   | _, _, _, _, .iterate _ body => IsLocal body
   | _, _, _, _, .workspace _ _ _ _ _ => False
   | _, _, _, _, .embed _ _ => False
+  | _, _, _, _, .ownedLayoutView _ _ => False
   | _, _, _, _, .parallelClassical _ _ _ _ => False
   | _, _, _, _, .parallelQuantum _ _ _ _ => False
 
@@ -45,7 +46,7 @@ public lemma isLocal_endpoints {allowAllocation : Bool} {model : ExecutionModel}
   induction code with
   | id | unitary | measureZ => rfl
   | classical | classicalQuery | retain | prepareZero | workspace
-  | embed | parallelClassical | parallelQuantum =>
+  | embed | ownedLayoutView | parallelClassical | parallelQuantum =>
       exact False.elim supported
   | seq first second firstIH secondIH =>
       exact (firstIH supported.1).trans (secondIH supported.2)

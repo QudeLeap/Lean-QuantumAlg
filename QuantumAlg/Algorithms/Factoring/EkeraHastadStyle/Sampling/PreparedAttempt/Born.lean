@@ -602,6 +602,120 @@ lemma fixedPreparedSampleMinorization_markedObstructionMass_le_oneOver2048
         ENNReal.inv_mul_cancel (by norm_num) (by norm_num)]
       norm_num
 
+/-- Two independent marked draws hit the finite fixed-sample obstruction
+carrier with probability at most `1/4096`.  The bound is the global pure-RSA
+carrier count scaled by the literal selected-atom floor. -/
+lemma fixedPreparedSampleMinorization_markedObstructionMass_le_oneOver4096
+    {N : Nat} (input : Input N) (sample : Fin (2 ^ residueSamplingBits N))
+    (secret : Nat) (hm : 3 ≤ (registerParameters N).m)
+    (htradeoff : (registerParameters N).m + 1 ≤
+      2 * (registerParameters N).ell)
+    (hsecretPos : 0 < secret)
+    (hsecretLt : secret < 2 ^ (registerParameters N).m)
+    (htarget : RSA.targetUnit (preparedResidue sample).unit =
+      (preparedResidue sample).unit ^ secret)
+    (horder : ShortDLP.oracleFiberSpan (registerParameters N) secret ≤
+      orderOf (preparedResidue sample).unit) :
+    (PMF.independentPair
+      (fixedPreparedSampleMinorization input sample secret (by omega)
+        hsecretPos hsecretLt htarget horder)).toOuterMeasure
+        (PMF.markedPairCarrier
+          (exactNarrowGoodSampleObstructionPairs N secret sample (by omega)
+            hsecretPos hsecretLt)) ≤
+      ENNReal.ofReal (1 / 4096 : Real) := by
+  classical
+  let core := exactNarrowGoodSampleCore N secret sample (by omega)
+    hsecretPos hsecretLt
+  let bad := exactNarrowGoodSampleObstructionPairs N secret sample
+    (by omega) hsecretPos hsecretLt
+  let floor := exactNarrowGoodAtomFloor N
+  have hfloor : ∀ outcome ∈ core,
+      floor ≤ fixedPreparedSamplePMF input sample outcome := by
+    intro outcome houtcome
+    exact fixedPreparedSamplePMF_exactNarrowGoodSampleCore_apply_ge
+      input sample secret (by omega) hsecretPos hsecretLt htarget horder houtcome
+  have hbadCore : ∀ pair ∈ bad, pair.1 ∈ core ∧ pair.2 ∈ core := by
+    intro pair hpair
+    exact exactNarrowGoodSampleObstructionPairs_mem_core
+      N secret sample (by omega) hsecretPos hsecretLt hpair
+  have hmass :
+      (PMF.independentPair
+        (fixedPreparedSampleMinorization input sample secret (by omega)
+          hsecretPos hsecretLt htarget horder)).toOuterMeasure
+          (PMF.markedPairCarrier bad) =
+        bad.card * floor ^ 2 := by
+    change (PMF.independentPair
+      (PMF.fractionalMarking (fixedPreparedSamplePMF input sample) core floor
+        hfloor)).toOuterMeasure (PMF.markedPairCarrier bad) = _
+    exact PMF.independentPair_fractionalMarking_markedBadMass
+      (fixedPreparedSamplePMF input sample) core floor hfloor bad hbadCore
+  rw [hmass]
+  let badCard : Nat := bad.card
+  let spaceCard : Nat := 2 ^ ((registerParameters N).ell +
+    (registerParameters N).m)
+  have hbadCard : badCard ≤
+      (RSA.shortLogTinyMultiplierObstructionPairs
+        (registerParameters N).m (registerParameters N).ell).card := by
+    exact exactNarrowGoodSampleObstructionPairs_card_le
+      N secret sample (by omega) hsecretPos hsecretLt
+  have hcountNat : badCard * 256 ≤ spaceCard ^ 2 := by
+    exact (Nat.mul_le_mul_right 256 hbadCard).trans
+      (RSA.card_shortLogTinyMultiplierObstructionPairs_mul_256_le_square
+        hm htradeoff)
+  have hcount : (badCard : ENNReal) * 256 ≤
+      (spaceCard : ENNReal) * (spaceCard : ENNReal) := by
+    have hcountPow : (badCard : ENNReal) * 256 ≤
+        (spaceCard : ENNReal) ^ 2 := by
+      exact_mod_cast hcountNat
+    simpa [pow_two] using hcountPow
+  have hfloorEq : floor =
+      (4 : ENNReal)⁻¹ * (spaceCard : ENNReal)⁻¹ := by
+    dsimp [floor, exactNarrowGoodAtomFloor]
+    rw [ENNReal.ofReal_inv_of_pos (by positivity),
+      ENNReal.ofReal_pow (by norm_num : (0 : Real) ≤ 2)]
+    have hexponent :
+        (registerParameters N).m + (registerParameters N).ell + 2 =
+          2 + ((registerParameters N).ell + (registerParameters N).m) := by
+      omega
+    rw [hexponent, pow_add,
+      ENNReal.mul_inv (Or.inl (by positivity)) (Or.inl (by finiteness))]
+    norm_num [spaceCard]
+  have hspaceZero : (spaceCard : ENNReal) ≠ 0 := by
+    simp [spaceCard]
+  have hspaceTop : (spaceCard : ENNReal) ≠ ⊤ := by finiteness
+  change (badCard : ENNReal) * floor ^ 2 ≤ _
+  rw [hfloorEq]
+  rw [show ENNReal.ofReal (1 / 4096 : Real) = (4096 : ENNReal)⁻¹ by
+    rw [show (1 / 4096 : Real) = (4096 : Real)⁻¹ by norm_num,
+      ENNReal.ofReal_inv_of_pos (by norm_num)]
+    norm_num]
+  rw [ENNReal.le_inv_iff_mul_le]
+  rw [pow_two, show (4096 : ENNReal) = 256 * 16 by norm_num]
+  calc
+    (badCard : ENNReal) *
+          ((4 : ENNReal)⁻¹ * (spaceCard : ENNReal)⁻¹ *
+            ((4 : ENNReal)⁻¹ * (spaceCard : ENNReal)⁻¹)) *
+          (256 * 16) =
+        ((badCard : ENNReal) * 256) *
+          ((spaceCard : ENNReal)⁻¹ * (spaceCard : ENNReal)⁻¹) *
+          (((4 : ENNReal)⁻¹ * (4 : ENNReal)⁻¹) * 16) := by
+      ac_rfl
+    _ ≤ ((spaceCard : ENNReal) * (spaceCard : ENNReal)) *
+          ((spaceCard : ENNReal)⁻¹ * (spaceCard : ENNReal)⁻¹) *
+          (((4 : ENNReal)⁻¹ * (4 : ENNReal)⁻¹) * 16) := by
+      gcongr
+    _ = 1 := by
+      rw [show ((spaceCard : ENNReal) * (spaceCard : ENNReal)) *
+          ((spaceCard : ENNReal)⁻¹ * (spaceCard : ENNReal)⁻¹) =
+        ((spaceCard : ENNReal) * (spaceCard : ENNReal)⁻¹) *
+          ((spaceCard : ENNReal) * (spaceCard : ENNReal)⁻¹) by ac_rfl,
+        ENNReal.mul_inv_cancel hspaceZero hspaceTop]
+      rw [show (16 : ENNReal) = 4 * 4 by norm_num,
+        show (4 : ENNReal)⁻¹ * (4 : ENNReal)⁻¹ * (4 * 4) =
+          ((4 : ENNReal)⁻¹ * 4) * ((4 : ENNReal)⁻¹ * 4) by ac_rfl,
+        ENNReal.inv_mul_cancel (by norm_num) (by norm_num)]
+      norm_num
+
 /-- Two actual prepared terminal samples are feasible when both are
 narrow-good for the same fixed residue and their first indices avoid the
 finite tiny-multiplier obstruction. -/
@@ -841,6 +955,190 @@ lemma fixedPreparedSample_sixteen_hasFeasibleNarrowGoodPair_ge
       rw [PMF.independentReplicate_map,
         fixedPreparedSampleMinorization_map_fst]
 
+/-- Twenty independent terminal measurements of one fixed selected residue
+contain a feasible narrow-good pair with the source-shaped batch floor.  All
+twenty draws use the same raw residue sampler value; only their terminal
+measurements are independent. -/
+lemma fixedPreparedSample_twenty_hasFeasibleNarrowGoodPair_ge
+    {N : Nat} (input : Input N) (sample : Fin (2 ^ residueSamplingBits N))
+    (secret : Nat) (hm : 3 ≤ (registerParameters N).m)
+    (htradeoff : (registerParameters N).m + 1 ≤
+      2 * (registerParameters N).ell)
+    (hsecretPos : 0 < secret)
+    (hsecretLt : secret < 2 ^ (registerParameters N).m)
+    (htarget : RSA.targetUnit (preparedResidue sample).unit =
+      (preparedResidue sample).unit ^ secret)
+    (horder : ShortDLP.oracleFiberSpan (registerParameters N) secret ≤
+      orderOf (preparedResidue sample).unit) :
+    ENNReal.ofReal (BinomialTail.twentySampleBatchFloor : Real) ≤
+      ((PMF.independentReplicate
+        (fixedPreparedSamplePMF input sample) 20).toOuterMeasure
+          {samples | PMF.HasPair
+            (FixedPreparedFeasibleNarrowGoodPair N secret sample) samples}) := by
+  classical
+  let hmTwo : 2 ≤ (registerParameters N).m := by omega
+  let core := exactNarrowGoodSampleCore N secret sample hmTwo
+    hsecretPos hsecretLt
+  let coupling := fixedPreparedSampleMinorization input sample secret hmTwo
+    hsecretPos hsecretLt htarget horder
+  let markedCore := fun outcome : PreparedBatchSample N × Bool =>
+    outcome.2 ∧ outcome.1 ∈ core
+  let bad := exactNarrowGoodSampleObstructionPairs N secret sample hmTwo
+    hsecretPos hsecretLt
+  let markedBad := fun pair :
+      (PreparedBatchSample N × Bool) × (PreparedBatchSample N × Bool) =>
+    pair ∈ PMF.markedPairCarrier bad
+  let transcripts := PMF.independentReplicate coupling 20
+  let atLeastTwoSet : Set (List (PreparedBatchSample N × Bool)) :=
+    {samples | PMF.AtLeastTwoEvents markedCore samples}
+  let badTranscriptSet : Set (List (PreparedBatchSample N × Bool)) :=
+    {samples | PMF.HasPair markedBad samples}
+  have hmarked : coupling.toOuterMeasure
+      {outcome | markedCore outcome} = ENNReal.ofReal (1 / 8 : Real) := by
+    simpa [coupling, markedCore, core] using
+      fixedPreparedSampleMinorization_markedCoreMass
+        input sample secret hmTwo hsecretPos hsecretLt htarget horder
+  have hunmarked : coupling.toOuterMeasure
+      {outcome | ¬ markedCore outcome} = ENNReal.ofReal (7 / 8 : Real) := by
+    rw [PMF.eventProbability_eq_one_sub_complement coupling
+      (fun outcome => ¬ markedCore outcome)]
+    simp only [not_not]
+    rw [hmarked]
+    calc
+      1 - ENNReal.ofReal (1 / 8 : Real) =
+          ENNReal.ofReal (1 - 1 / 8 : Real) := by
+        rw [← ENNReal.ofReal_one,
+          ← ENNReal.ofReal_sub (1 : Real) (by positivity)]
+      _ = ENNReal.ofReal (7 / 8 : Real) := by norm_num
+  have hatLeastTwo : transcripts.toOuterMeasure atLeastTwoSet =
+      ENNReal.ofReal (BinomialTail.atLeastTwoOfTwentyAtOneEighth : Real) := by
+    dsimp only [transcripts, atLeastTwoSet]
+    rw [PMF.independentReplicate_atLeastTwoProbability_eq,
+      hmarked, hunmarked]
+    have hinner :
+        ENNReal.ofReal (7 / 8 : Real) ^ 20 +
+            20 * ENNReal.ofReal (1 / 8 : Real) *
+              ENNReal.ofReal (7 / 8 : Real) ^ 19 =
+          ENNReal.ofReal
+            ((7 / 8 : Real) ^ 20 +
+              20 * (1 / 8 : Real) * (7 / 8 : Real) ^ 19) := by
+      rw [ENNReal.ofReal_add (by positivity) (by positivity),
+        ENNReal.ofReal_pow (by positivity : (0 : Real) ≤ 7 / 8),
+        ENNReal.ofReal_mul
+          (by positivity : (0 : Real) ≤ 20 * (1 / 8 : Real)),
+        ENNReal.ofReal_mul (by norm_num : (0 : Real) ≤ 20),
+        ENNReal.ofReal_pow (by positivity : (0 : Real) ≤ 7 / 8)]
+      norm_num
+    change 1 - (ENNReal.ofReal (7 / 8 : Real) ^ 20 +
+        20 * ENNReal.ofReal (1 / 8 : Real) *
+          ENNReal.ofReal (7 / 8 : Real) ^ 19) = _
+    rw [hinner]
+    calc
+      1 - ENNReal.ofReal
+          ((7 / 8 : Real) ^ 20 +
+            20 * (1 / 8 : Real) * (7 / 8 : Real) ^ 19) =
+          ENNReal.ofReal
+            (1 - ((7 / 8 : Real) ^ 20 +
+              20 * (1 / 8 : Real) * (7 / 8 : Real) ^ 19)) := by
+        rw [← ENNReal.ofReal_one,
+          ← ENNReal.ofReal_sub (1 : Real) (by positivity)]
+      _ = ENNReal.ofReal
+          (BinomialTail.atLeastTwoOfTwentyAtOneEighth : Real) := by
+        congr 1
+        norm_num [BinomialTail.atLeastTwoOfTwentyAtOneEighth]
+  have hbadPair :
+      (PMF.independentPair coupling).toOuterMeasure
+          {pair | markedBad pair} ≤ ENNReal.ofReal (1 / 4096 : Real) := by
+    change (PMF.independentPair coupling).toOuterMeasure
+      (↑(PMF.markedPairCarrier bad) : Set _) ≤
+        ENNReal.ofReal (1 / 4096 : Real)
+    simpa only [coupling, bad] using
+      fixedPreparedSampleMinorization_markedObstructionMass_le_oneOver4096
+        input sample secret hm htradeoff hsecretPos hsecretLt htarget horder
+  have hbadTranscript : transcripts.toOuterMeasure badTranscriptSet ≤
+      ENNReal.ofReal (190 / 4096 : Real) := by
+    calc
+      transcripts.toOuterMeasure badTranscriptSet ≤
+          (Nat.choose 20 2 : ENNReal) *
+            ((PMF.independentPair coupling).toOuterMeasure
+              {pair | markedBad pair}) := by
+        exact PMF.independentReplicate_hasPairProbability_le
+          coupling markedBad 20
+      _ ≤ (Nat.choose 20 2 : ENNReal) *
+          ENNReal.ofReal (1 / 4096 : Real) := by
+        simpa [mul_comm] using mul_le_mul_right hbadPair (Nat.choose 20 2 : ENNReal)
+      _ = ENNReal.ofReal ((190 : Real) * (1 / 4096 : Real)) := by
+        rw [show Nat.choose 20 2 = 190 by norm_num [Nat.choose],
+          ENNReal.ofReal_mul (by norm_num : (0 : Real) ≤ 190)]
+        norm_num
+      _ = ENNReal.ofReal (190 / 4096 : Real) := by congr 1; norm_num
+  have hdiff :
+      transcripts.toOuterMeasure atLeastTwoSet -
+          transcripts.toOuterMeasure badTranscriptSet ≤
+        transcripts.toOuterMeasure (atLeastTwoSet \ badTranscriptSet) := by
+    apply tsub_le_iff_left.mpr
+    calc
+      transcripts.toOuterMeasure atLeastTwoSet ≤
+          transcripts.toOuterMeasure (atLeastTwoSet ∩ badTranscriptSet) +
+            transcripts.toOuterMeasure
+              (atLeastTwoSet \ badTranscriptSet) :=
+        MeasureTheory.measure_le_inter_add_sdiff _ _ _
+      _ ≤ transcripts.toOuterMeasure badTranscriptSet +
+            transcripts.toOuterMeasure
+              (atLeastTwoSet \ badTranscriptSet) := by
+        gcongr
+        exact Set.inter_subset_right
+  have hgood : ENNReal.ofReal
+        (BinomialTail.twentySampleBatchFloor : Real) ≤
+      transcripts.toOuterMeasure (atLeastTwoSet \ badTranscriptSet) := by
+    calc
+      ENNReal.ofReal (BinomialTail.twentySampleBatchFloor : Real) =
+          ENNReal.ofReal
+            ((BinomialTail.atLeastTwoOfTwentyAtOneEighth : Real) -
+              190 / 4096) := by
+        congr 1
+        norm_num [BinomialTail.twentySampleBatchFloor]
+      _ = ENNReal.ofReal
+            (BinomialTail.atLeastTwoOfTwentyAtOneEighth : Real) -
+          ENNReal.ofReal (190 / 4096 : Real) := by
+        rw [ENNReal.ofReal_sub]
+        norm_num
+      _ ≤ transcripts.toOuterMeasure atLeastTwoSet -
+          transcripts.toOuterMeasure badTranscriptSet :=
+        tsub_le_tsub hatLeastTwo.ge hbadTranscript
+      _ ≤ transcripts.toOuterMeasure
+          (atLeastTwoSet \ badTranscriptSet) := hdiff
+  have hprojects : atLeastTwoSet \ badTranscriptSet ⊆
+      List.map Prod.fst ⁻¹'
+        {samples | PMF.HasPair
+          (FixedPreparedFeasibleNarrowGoodPair N secret sample) samples} := by
+    intro outputs houtputs
+    change PMF.HasPair
+      (FixedPreparedFeasibleNarrowGoodPair N secret sample)
+        (outputs.map Prod.fst)
+    exact hasFixedPreparedFeasibleNarrowGoodPair_map_fst_of_markedCore
+      N secret sample hmTwo hsecretPos hsecretLt outputs
+        houtputs.1 houtputs.2
+  calc
+    ENNReal.ofReal (BinomialTail.twentySampleBatchFloor : Real) ≤
+        transcripts.toOuterMeasure (atLeastTwoSet \ badTranscriptSet) := hgood
+    _ ≤ transcripts.toOuterMeasure
+        (List.map Prod.fst ⁻¹'
+          {samples | PMF.HasPair
+            (FixedPreparedFeasibleNarrowGoodPair N secret sample) samples}) :=
+      transcripts.toOuterMeasure_mono (fun _ houtputs => hprojects houtputs.1)
+    _ = (transcripts.map (List.map Prod.fst)).toOuterMeasure
+        {samples | PMF.HasPair
+          (FixedPreparedFeasibleNarrowGoodPair N secret sample) samples} := by
+      rw [PMF.toOuterMeasure_map_apply]
+    _ = ((PMF.independentReplicate
+      (fixedPreparedSamplePMF input sample) 20).toOuterMeasure
+        {samples | PMF.HasPair
+          (FixedPreparedFeasibleNarrowGoodPair N secret sample) samples}) := by
+      dsimp only [transcripts]
+      rw [PMF.independentReplicate_map,
+        fixedPreparedSampleMinorization_map_fst]
+
 /-- The pure lattice-feasibility predicate for two terminal results held by
 actual prepared batch samples. -/
 def fixedPreparedPairFeasible (N : Nat)
@@ -978,7 +1276,7 @@ lemma recoverPreparedPair_some_of_fixedPreparedFeasibleNarrowGoodPair
 /-- One feasible narrow-good pair among the 120 ordered recovery inputs makes
 the canonical fixed sixteen-sample batch value return some factor. -/
 lemma batchValue_eq_some_of_fixedPreparedFeasibleNarrowGoodPair
-    {p q : Nat} (sample : Fin (2 ^ residueSamplingBits (p * q)))
+    {p q sampleCount : Nat} (sample : Fin (2 ^ residueSamplingBits (p * q)))
     (hp : p.Prime) (hq : q.Prime) (hpq : p ≠ q)
     (hpOdd : Odd p) (hqOdd : Odd q)
     (hm : 3 ≤ (registerParameters (p * q)).m)
@@ -988,7 +1286,7 @@ lemma batchValue_eq_some_of_fixedPreparedFeasibleNarrowGoodPair
     (horder : ShortDLP.oracleFiberSpan (registerParameters (p * q))
         (RSA.shortLogSecret p q) ≤
       orderOf (preparedResidue sample).unit)
-    (inputs : List.Vector (PreparedBatchSample (p * q)) 16)
+    (inputs : List.Vector (PreparedBatchSample (p * q)) sampleCount)
     (hpairExists : PMF.HasPair
       (FixedPreparedFeasibleNarrowGoodPair (p * q)
         (RSA.shortLogSecret p q) sample) inputs.toList) :

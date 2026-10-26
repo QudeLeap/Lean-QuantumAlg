@@ -1,29 +1,24 @@
 #!/usr/bin/env python3
 """Build and finish a source-bound release within its own GitHub repository.
 
-The handoff is an annotated tag, a draft Release and one verified site archive.
+The handoff is an annotated tag binding the release notes and a draft Release.
 Release CI publishes its cache directly. Publication restores that exact cache
-and requires a separate full-library lint receipt before Pages or Release writes.
+and requires a separate full-library lint receipt before publishing the Release.
 Network/process boundaries are injectable.
 """
 from __future__ import annotations
 
 import argparse
-import base64
 import hashlib
 import importlib.util
 import json
 import os
-from pathlib import Path, PurePosixPath
+from pathlib import Path
 import re
-import shutil
 import subprocess
 import sys
-import tarfile
 import tempfile
-import time
 import urllib.error
-import urllib.parse
 import urllib.request
 
 VERSION = re.compile(r"(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\Z")
@@ -31,12 +26,10 @@ SHA = re.compile(r"[0-9a-f]{40}\Z")
 HASH = re.compile(r"[0-9a-f]{64}\Z")
 RUN_ID = re.compile(r"[1-9][0-9]*\Z")
 WORKFLOW = ".github/workflows/release-ci.yml"
-BUILD_STEPS = {"Build all library modules", "Pack and restore cache", "Upload cache archive"}
+BUILD_STEPS = {"Build all library modules", "Full custom lint", "Pack and restore cache", "Upload cache archive"}
 PLATFORM = "x86_64-unknown-linux-gnu"
 ARCHIVE = f"QuantumAlg-{PLATFORM}.tar.gz"
-SITE_ASSET = "release-site.tar.gz"
 MAX_BYTES = 2 * 1024**3
-SITE_KEYS = {"format_version", "version", "source_sha", "notes_sha256", "site_sha256", "index_sha256"}
 
 
 class ReleaseError(RuntimeError):
@@ -138,7 +131,10 @@ def annotated_tag(api, version):
     tag = api.request("GET", endpoint(api, f"git/tags/{ref['object']['sha']}"))
     if tag.get("tag") != version or tag.get("object", {}).get("type") != "commit":
         raise ReleaseError("the release tag must directly annotate its source commit")
-    return {"source_sha": validate_sha(tag["object"]["sha"]), "tag_sha": ref["object"]["sha"]}
+    message = tag.get("message", "")
+    match = re.fullmatch(rf"Lean-QuantumAlg {re.escape(version)}\n\nNotes-SHA256: ([0-9a-f]{{64}})\n", message)
+    return {"source_sha": validate_sha(tag["object"]["sha"]), "tag_sha": ref["object"]["sha"],
+            "notes_sha256": match.group(1) if match else None}
 
 
 def get_release(api, version):
@@ -170,7 +166,7 @@ def assets_for(api, release):
     result = {}
     for asset in assets:
         name = asset.get("name")
-        if name in result or name not in (ARCHIVE, SITE_ASSET):
+        if name in result or name != ARCHIVE:
             raise ReleaseError("unexpected or duplicate Release attachment")
         result[name] = asset
     return result
@@ -218,96 +214,18 @@ def require_cache(assets):
     return asset_digest(assets[ARCHIVE])
 
 
-def tree_digest(root):
-    result = hashlib.sha256()
-    for path in sorted(Path(root).rglob("*")):
-        if path.is_symlink():
-            raise ReleaseError("site tree contains a symlink")
-        if path.is_file():
-            result.update(path.relative_to(root).as_posix().encode() + b"\0")
-            result.update(bytes.fromhex(file_digest(path)))
-    return result.hexdigest()
-
-
-def validate_site(directory, version, source_sha, body):
-    directory = Path(directory)
-    path = directory / "release.json"
-    if path.is_symlink() or not path.is_file():
-        raise ReleaseError("the site handoff metadata is missing")
-    metadata = json.loads(path.read_text(encoding="utf-8"))
-    if (not isinstance(metadata, dict) or set(metadata) != SITE_KEYS
-            or type(metadata.get("format_version")) is not int or metadata["format_version"] != 1
-            or metadata.get("version") != validate_version(version)
-            or metadata.get("source_sha") != validate_sha(source_sha)):
-        raise ReleaseError("site handoff metadata does not match the selected version and source")
-    if any(not isinstance(metadata.get(key), str) or not HASH.fullmatch(metadata[key])
-           for key in ("notes_sha256", "site_sha256", "index_sha256")):
-        raise ReleaseError("invalid site handoff digest")
-    if metadata["notes_sha256"] != digest(body.encode("utf-8")):
-        raise ReleaseError("existing Release body conflicts with the handoff; refusing to overwrite")
-    site = directory / "site"
-    if not (site / "index.html").is_file() or not (site / ".nojekyll").is_file():
-        raise ReleaseError("the site requires index.html and .nojekyll")
-    if (tree_digest(site) != metadata["site_sha256"]
-            or file_digest(site / "index.html") != metadata["index_sha256"]):
-        raise ReleaseError("site content differs from its handoff digests")
-    return metadata
-
-
-def extract_site(archive, directory):
-    directory = Path(directory)
-    directory.mkdir(parents=True, exist_ok=True)
-    if any(directory.iterdir()):
-        raise ReleaseError("site extraction directory must be empty")
-    seen, total = set(), 0
-    with tarfile.open(archive, "r:gz") as tar:
-        for item in tar:
-            path = PurePosixPath(item.name)
-            name = path.as_posix()
-            if (path.is_absolute() or ".." in path.parts or "\\" in item.name
-                    or name in seen or not path.parts or ".git" in path.parts
-                    or not (name == "release.json" or path.parts[0] == "site")
-                    or not (item.isdir() or item.isfile())
-                    or (name == "release.json" and not item.isfile())):
-                raise ReleaseError("site archive contains an unsafe or unexpected member")
-            seen.add(name)
-            total += item.size
-            if total >= MAX_BYTES or len(seen) > 100000:
-                raise ReleaseError("site archive exceeds the extraction bound")
-            target = directory.joinpath(*path.parts)
-            if item.isdir():
-                target.mkdir(parents=True, exist_ok=True)
-            else:
-                target.parent.mkdir(parents=True, exist_ok=True)
-                with tar.extractfile(item) as source, target.open("xb") as output:
-                    shutil.copyfileobj(source, output)
-
-
-def download_site(api, release, asset, output, *, runner=subprocess.run):
-    expected = asset_digest(asset)
-    with tempfile.TemporaryDirectory(prefix="release-site-download-") as temporary:
-        run_process(["gh", "release", "download", release["tag_name"], "--repo", api.repository,
-                     "--pattern", SITE_ASSET, "--dir", temporary], runner=runner)
-        archive = Path(temporary) / SITE_ASSET
-        if archive.is_symlink() or not archive.is_file() or archive.stat().st_size != asset["size"] or file_digest(archive) != expected:
-            raise ReleaseError("downloaded site archive differs from GitHub's asset digest")
-        extract_site(archive, output)
-
-
 def verify_handoff(api, version, source_sha, *, runner=subprocess.run):
     tag = annotated_tag(api, version)
     if tag["source_sha"] != validate_sha(source_sha):
         raise ReleaseError("annotated tag source conflicts with the requested commit")
     release = get_release(api, version)
-    assets = assets_for(api, release)
-    if SITE_ASSET in assets:
-        with tempfile.TemporaryDirectory(prefix="release-handoff-") as temporary:
-            directory = Path(temporary) / "handoff"
-            download_site(api, release, assets[SITE_ASSET], directory, runner=runner)
-            validate_site(directory, version, source_sha, release["body"])
-    elif release.get("draft"):
-        raise ReleaseError("draft Release is missing its site handoff")
-    return tag, release, assets
+    # Published historical versions predate notes-bound tags and remain read-only.
+    if tag["notes_sha256"] is None:
+        if release.get("draft"):
+            raise ReleaseError("draft Release requires an annotated tag binding its notes digest")
+    elif tag["notes_sha256"] != digest(release["body"].encode()):
+        raise ReleaseError("existing Release body conflicts with its annotated tag")
+    return tag, release, assets_for(api, release)
 
 
 def resolve_build(api, version, source_sha, *, runner=subprocess.run):
@@ -378,23 +296,17 @@ def prepare_finalize(api, run_id, output, *, version=None, runner=subprocess.run
     if len(candidates) != 1:
         raise ReleaseError("successful Release CI must identify exactly one matching release version")
     version = candidates[0]
-    tag = annotated_tag(api, version)
-    release = get_release(api, version)
-    assets = assets_for(api, release)
+    tag, release, assets = verify_handoff(api, version, source_sha, runner=runner)
     require_cache(assets)
-    if SITE_ASSET not in assets:
-        if release.get("draft"):
-            raise ReleaseError("draft Release is missing its site handoff")
+    if not release.get("draft"):
         return {"version": version, "source_sha": source_sha, "ready": "false"}
     require_run(api, run_id, source_sha, full_build=True)
+    prepared = {"repository": api.repository, "version": version, "source_sha": source_sha,
+                "run_id": str(run_id), "tag_sha": tag["tag_sha"], "notes_sha256": tag["notes_sha256"],
+                "release_id": release["id"], "cache_asset_id": assets[ARCHIVE]["id"],
+                "cache_sha256": asset_digest(assets[ARCHIVE])}
     output = Path(output)
-    download_site(api, release, assets[SITE_ASSET], output, runner=runner)
-    metadata = validate_site(output, version, source_sha, release["body"])
-    prepared = {"repository": api.repository, **metadata, "run_id": str(run_id),
-                "tag_sha": tag["tag_sha"],
-                "release_id": release["id"], "site_asset_id": assets[SITE_ASSET]["id"],
-                "site_asset_sha256": asset_digest(assets[SITE_ASSET]),
-                "cache_asset_id": assets[ARCHIVE]["id"], "cache_sha256": asset_digest(assets[ARCHIVE])}
+    output.mkdir(parents=True, exist_ok=False)
     (output / "prepared.json").write_text(json.dumps(prepared, sort_keys=True) + "\n", encoding="utf-8")
     return {"version": version, "source_sha": source_sha, "ready": "true"}
 
@@ -405,27 +317,16 @@ def check_prepared(api, directory):
     if prepared.get("repository") != api.repository:
         raise ReleaseError("prepared release belongs to a different repository")
     version, sha = prepared["version"], prepared["source_sha"]
-    tag = annotated_tag(api, version)
-    if tag != {"source_sha": sha, "tag_sha": prepared["tag_sha"]}:
+    tag, release, assets = verify_handoff(api, version, sha)
+    if tag != {"source_sha": sha, "tag_sha": prepared["tag_sha"], "notes_sha256": prepared["notes_sha256"]}:
         raise ReleaseError("annotated tag changed after preparation")
     require_run(api, prepared["run_id"], sha, full_build=True)
-    release = get_release(api, version)
     if release["id"] != prepared["release_id"]:
         raise ReleaseError("Release identity changed after preparation")
-    metadata = validate_site(directory, version, sha, release["body"])
-    if any(prepared.get(key) != value for key, value in metadata.items()):
-        raise ReleaseError("prepared site metadata changed")
-    assets = assets_for(api, release)
     require_cache(assets)
     if (assets[ARCHIVE]["id"] != prepared["cache_asset_id"]
             or asset_digest(assets[ARCHIVE]) != prepared["cache_sha256"]):
         raise ReleaseError("cache archive changed after preparation")
-    if SITE_ASSET in assets:
-        if (assets[SITE_ASSET]["id"] != prepared["site_asset_id"]
-                or asset_digest(assets[SITE_ASSET]) != prepared["site_asset_sha256"]):
-            raise ReleaseError("site handoff asset changed after preparation")
-    elif release.get("draft"):
-        raise ReleaseError("draft site handoff disappeared after preparation")
     return prepared, release, assets
 
 
@@ -472,117 +373,9 @@ def require_full_lint(directory, prepared):
         raise ReleaseError("full-library lint receipt differs from the restored release source")
 
 
-class Git:
-    def __init__(self, token="", *, runner=subprocess.run):
-        self.runner = runner
-        self.env = dict(os.environ, GIT_TERMINAL_PROMPT="0")
-        if token:
-            encoded = base64.b64encode(f"x-access-token:{token}".encode()).decode()
-            self.env.update(GIT_CONFIG_COUNT="1", GIT_CONFIG_KEY_0="http.https://github.com/.extraheader",
-                            GIT_CONFIG_VALUE_0=f"AUTHORIZATION: basic {encoded}")
-
-    def run(self, *args, cwd=None, check=True):
-        return run_process(["git", *args], cwd=cwd, env=self.env, runner=self.runner, check=check)
-
-
-def sync_site(api, git, directory):
-    prepared, release, _ = check_prepared(api, directory)
-    require_full_lint(directory, prepared)
-    require_no_newer_release(api, prepared["version"])
-    source = Path(directory) / "site"
-    url = f"https://github.com/{api.repository}.git"
-    with tempfile.TemporaryDirectory(prefix="release-pages-") as temporary:
-        checkout = Path(temporary) / "repo"
-        exists = git.run("ls-remote", "--exit-code", "--heads", url, "gh-pages", check=False)
-        if exists.returncode not in (0, 2):
-            raise ReleaseError("could not inspect the Pages branch")
-        git.run("clone", "--depth", "1", "--branch", "gh-pages" if exists.returncode == 0 else "main", url, checkout)
-        if exists.returncode == 2:
-            git.run("switch", "--orphan", "gh-pages", cwd=checkout)
-        cname = (checkout / "CNAME").read_bytes() if (checkout / "CNAME").is_file() else None
-        if not (checkout / ".git").is_dir():
-            raise ReleaseError("Pages destination must be a disposable Git checkout")
-        for path in checkout.iterdir():
-            if path.name == ".git":
-                continue
-            if path.is_dir() and not path.is_symlink():
-                shutil.rmtree(path)
-            else:
-                path.unlink()
-        shutil.copytree(source, checkout, dirs_exist_ok=True)
-        if cname is not None:
-            (checkout / "CNAME").write_bytes(cname)
-        git.run("config", "user.name", "Lean-QuantumAlg Maintainers", cwd=checkout)
-        git.run("config", "user.email", "noreply@github.com", cwd=checkout)
-        git.run("config", "commit.gpgsign", "false", cwd=checkout)
-        git.run("add", "-A", cwd=checkout)
-        changed = git.run("diff", "--cached", "--quiet", cwd=checkout, check=False)
-        if changed.returncode not in (0, 1):
-            raise ReleaseError("could not compare the Pages projection")
-        if not release.get("draft") and (changed.returncode or exists.returncode == 2):
-            raise ReleaseError("published documentation differs; refusing to roll the site back")
-        if changed.returncode or exists.returncode == 2:
-            check_prepared(api, directory)
-            require_no_newer_release(api, prepared["version"])
-            git.run("commit", "-m", f"Release {prepared['version']} documentation", cwd=checkout)
-            git.run("push", "origin", "HEAD:gh-pages", cwd=checkout)
-        sha = git.run("rev-parse", "HEAD", cwd=checkout).stdout.strip()
-        remote = git.run("ls-remote", "origin", "refs/heads/gh-pages", cwd=checkout).stdout.split()
-        if not remote or remote[0] != sha:
-            raise ReleaseError("Pages branch readback differs from the selected commit")
-        return validate_sha(sha)
-
-
-def wait_pages(api, pages_sha, *, timeout=1800, interval=30, clock=time.monotonic, sleep=time.sleep):
-    validate_sha(pages_sha)
-    deadline = clock() + timeout
-    while True:
-        ref = api.request("GET", endpoint(api, "git/ref/heads/gh-pages"))
-        if ref.get("object", {}).get("sha") != pages_sha:
-            raise ReleaseError("Pages branch moved during release finalization")
-        runs = [item for item in api.pages(endpoint(api, f"actions/runs?head_sha={pages_sha}"), "workflow_runs")
-                if item.get("head_sha") == pages_sha and item.get("name") == "pages build and deployment"]
-        if any(item.get("status") == "completed" and item.get("conclusion") == "success" for item in runs):
-            return
-        if runs and all(item.get("status") == "completed" for item in runs):
-            raise ReleaseError("Pages deployment did not complete successfully")
-        remaining = deadline - clock()
-        if remaining <= 0:
-            raise ReleaseError("timed out waiting for the exact Pages commit")
-        print("Waiting for Pages deployment of the selected commit.", flush=True)
-        sleep(min(interval, remaining))
-
-
-def verify_live_site(api, prepared, *, opener=urllib.request.urlopen, sleep=time.sleep, attempts=10):
-    pages = api.request("GET", endpoint(api, "pages"))
-    url = pages.get("html_url")
-    if not isinstance(url, str) or not url.startswith("https://"):
-        raise ReleaseError("Pages did not report an HTTPS site URL")
-    separator = "&" if "?" in url else "?"
-    url += separator + urllib.parse.urlencode({"release": prepared["version"], "source": prepared["source_sha"]})
-    for attempt in range(attempts):
-        request = urllib.request.Request(url, headers={"Cache-Control": "no-cache"})
-        try:
-            with opener(request, timeout=60) as response:
-                current = digest(response.read())
-            if current == prepared["index_sha256"]:
-                return
-        except (urllib.error.HTTPError, urllib.error.URLError):
-            pass
-        if attempt + 1 < attempts:
-            sleep(30)
-    raise ReleaseError("deployed homepage does not match the selected site bytes")
-
-
-def finish(api, directory, pages_sha, *, waiter=wait_pages, live_check=verify_live_site):
-    prepared, _, _ = check_prepared(api, directory)
-    require_full_lint(directory, prepared)
-    waiter(api, pages_sha)
-    live_check(api, prepared)
+def finish(api, directory):
     prepared, release, assets = check_prepared(api, directory)
     require_full_lint(directory, prepared)
-    if api.request("GET", endpoint(api, "git/ref/heads/gh-pages")).get("object", {}).get("sha") != pages_sha:
-        raise ReleaseError("Pages branch moved before formal Release publication")
     require_no_newer_release(api, prepared["version"])
     if release.get("draft"):
         api.request("PATCH", endpoint(api, f"releases/{release['id']}"),
@@ -593,18 +386,24 @@ def finish(api, directory, pages_sha, *, waiter=wait_pages, live_check=verify_li
     latest = api.request("GET", endpoint(api, "releases/latest"))
     if latest.get("id") != actual["id"]:
         raise ReleaseError("formal Release is not the repository's Latest Release")
-    # Publishing first keeps the handoff recoverable if Pages or publication fails.
-    # A retry after publication still verifies all the same receipts before cleanup.
-    check_prepared(api, directory)
-    if SITE_ASSET in assets:
-        api.request("DELETE", endpoint(api, f"releases/assets/{assets[SITE_ASSET]['id']}"))
     final = assets_for(api, actual)
-    if set(final) != {ARCHIVE}:
-        raise ReleaseError("formal Release must retain only its build cache archive")
-    require_cache(final)
-    if asset_digest(final[ARCHIVE]) != prepared["cache_sha256"]:
+    if set(final) != {ARCHIVE} or asset_digest(final[ARCHIVE]) != prepared["cache_sha256"]:
         raise ReleaseError("final cache archive changed during publication")
     return actual["html_url"]
+
+
+def require_automation(api):
+    expected = {f"{api.repository}/.github/workflows/{name}@refs/heads/main"
+                for name in ("release-ci.yml", "publish-release.yml")}
+    if (os.environ.get("GITHUB_ACTIONS") != "true"
+            or os.environ.get("GITHUB_REPOSITORY") != api.repository
+            or os.environ.get("GITHUB_REF") != "refs/heads/main"
+            or os.environ.get("GITHUB_WORKFLOW_REF") not in expected
+            or not api.token or os.environ.get("GH_TOKEN") != api.token):
+        raise ReleaseError("Release writes require supported main-branch CI and an explicit automation token")
+    repositories = api.request("GET", "installation/repositories").get("repositories", [])
+    if not repositories or any(item.get("full_name") != api.repository for item in repositories):
+        raise ReleaseError("Release writes require a repository-scoped installation token")
 
 
 def output_value(name, value):
@@ -630,17 +429,17 @@ def main(argv=None):
     child.add_argument("--run-id", required=True)
     child.add_argument("--version")
     child.add_argument("--output", type=Path, required=True)
-    for name in ("restore-lint-cache", "sync-site", "finish"):
+    for name in ("restore-lint-cache", "finish"):
         child = commands.add_parser(name)
         child.add_argument("--prepared", type=Path, required=True)
         if name == "restore-lint-cache":
             child.add_argument("--source-root", type=Path, required=True)
-        if name == "finish":
-            child.add_argument("--pages-sha", required=True)
     args = parser.parse_args(argv)
     token = os.environ.get("GH_TOKEN") or os.environ.get("GITHUB_TOKEN", "")
     api = GitHub(args.repository, token)
     try:
+        if args.command in ("upload-cache", "finish"):
+            require_automation(api)
         if args.command == "resolve-build":
             result = resolve_build(api, args.version, args.sha)
         elif args.command == "upload-cache":
@@ -651,14 +450,12 @@ def main(argv=None):
         elif args.command == "restore-lint-cache":
             restore_lint_cache(api, args.prepared, args.source_root)
             result = {"restored": "true"}
-        elif args.command == "sync-site":
-            result = {"pages_sha": sync_site(api, Git(token), args.prepared)}
         else:
-            result = {"release_url": finish(api, args.prepared, args.pages_sha)}
+            result = {"release_url": finish(api, args.prepared)}
         for name, value in result.items():
             output_value(name, value)
         return 0
-    except (ReleaseError, OSError, ValueError, KeyError, tarfile.TarError) as error:
+    except (ReleaseError, OSError, ValueError, KeyError) as error:
         print(f"release: {error}", file=sys.stderr)
         return 1
 

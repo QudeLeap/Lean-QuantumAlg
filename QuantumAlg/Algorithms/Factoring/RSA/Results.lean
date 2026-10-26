@@ -10,28 +10,31 @@ public import QuantumAlg.Algorithms.Factoring.RSA
 public import QuantumAlg.Algorithms.Factoring.RSA.ScalarBounds
 import all QuantumAlg.Algorithms.Factoring.RSA
 
-public import QuantumAlg.Algorithms.Factoring.RSA.Recycling.Program.Coordinates
-public import QuantumAlg.Algorithms.Factoring.RSA.Recycling.Program.KeyAverage
+public import QuantumAlg.Algorithms.Factoring.RSA.Measured.Program.Coordinates
+import all QuantumAlg.Algorithms.Factoring.RSA.Measured.Program.Events.Comparison
+import all QuantumAlg.Algorithms.Factoring.RSA.Measured.Program.Events.General
+public import QuantumAlg.Algorithms.Factoring.RSA.Measured.Program.KeyAverage
 public import QuantumAlg.Algorithms.Factoring.EkeraHastadStyle.KeyGeneration.Specification
 public import QuantumAlg.Core.Base.Accounting.ClassicalWeight
 public import QuantumAlg.Core.Base.Accounting.Weighted
 
 import all QuantumAlg.Algorithms.Factoring.RSA.ScalarBounds
-import all QuantumAlg.Algorithms.Factoring.RSA.Recycling.Program.KeyAverage
-import all QuantumAlg.Primitives.ShortDLP.CompiledMAU.Recycling.Context
-import all QuantumAlg.Algorithms.Factoring.RSA.Recycling.Program
-import all QuantumAlg.Algorithms.Factoring.RSA.Recycling.Program.Endpoint
-import all QuantumAlg.Algorithms.Factoring.RSA.Recycling.Program.Coordinates
-import all QuantumAlg.Algorithms.Factoring.RSA.Recycling.Program.Space
-import all QuantumAlg.Algorithms.Factoring.RSA.Recycling.Program.QuantumTime
-import all QuantumAlg.Algorithms.Factoring.EkeraHastadStyle.StoreMachine.Retry.Native.Finite.Calibration
+import all QuantumAlg.Algorithms.Factoring.RSA.Measured.Program.KeyAverage
+import all QuantumAlg.Primitives.ShortDLP.CompiledMAU.Recycling.Source.Context
+import all QuantumAlg.Algorithms.Factoring.RSA.Measured.Program
+import all QuantumAlg.Algorithms.Factoring.RSA.Measured.Program.Endpoint
+import all QuantumAlg.Algorithms.Factoring.RSA.Measured.Program.Coordinates
+import all QuantumAlg.Algorithms.Factoring.RSA.Measured.Program.Space
+import all QuantumAlg.Algorithms.Factoring.RSA.Measured.Program.QuantumTime
+import all
+QuantumAlg.Algorithms.Factoring.EkeraHastadStyle.StoreMachine.Retry.Native.Finite.Calibration
 
 /-!
 # Same-run RSA coordinates and ordered-key guarantees
 
 The implementation receives the public modulus and real failure target.
 The factors, same-width encoding and original exceptional-key condition are
-proof-side data. Each batch executes the actual residue sampler, sixteen
+proof-side data. Each batch executes the actual residue sampler, configured
 compiled arithmetic members and complete lattice recovery. Later batches
 reuse the measured quantum bank; actual retained selection returns the first
 factor. Separate theorems establish the complete conditional execution contract and
@@ -48,6 +51,8 @@ namespace QuantumAlg.Factoring.RSA
 open EkeraHastadStyle EkeraHastadStyle.Canonical ShortDLP.CompiledMAU
 
 noncomputable section
+
+variable [configuration : Configuration]
 
 variable {environment :
   (ExecutionModel.quantum AlgorithmGate.model .empty BitWord.model).Environment}
@@ -77,15 +82,15 @@ public lemma source_initialized {N : Nat} (η : Real) (key : GoodKeyModel N)
 /-- The same actual algorithm at any specified finite batch count. -/
 public def algorithmAtCount {N : Nat} (specification : Canonical.Input N) (count : Nat) :
     Algorithm (.quantum AlgorithmGate.model .empty BitWord.model) base
-      (Recycling.Program.outputContext base noQuantum N count)
+      (Measured.Program.outputContext base noQuantum N count)
       (LatticeBatchRecoveryOutput.OutputShape N) :=
-  Recycling.Program.algorithm base noQuantum specification count
+  Measured.Program.algorithm base noQuantum specification count
 
 /-- Calibration specializes the same arbitrary-count algorithm on the original input. -/
 @[expose] public def algorithm {N : Nat} (specification : Canonical.Input N)
     (η : Real) :
     Algorithm (.quantum AlgorithmGate.model .empty BitWord.model) base
-      (Recycling.Program.outputContext base noQuantum N
+      (Measured.Program.outputContext base noQuantum N
         (NativeFiniteRetry.Calibration.retryCount η))
       (LatticeBatchRecoveryOutput.OutputShape N) :=
   algorithmAtCount base noQuantum specification
@@ -106,7 +111,7 @@ public lemma problem_resident_classicalBits (N : Nat)
         classicalBitBoundAtCount N
           (NativeFiniteRetry.Calibration.retryCount η) := by
   exact congrArg (fun bits => base.residentSpace .classicalBits + bits)
-    (Recycling.Program.rsaRecyclingParent_spaceLimit_classicalBits N
+    (Measured.Program.rsaMeasuredParent_spaceLimit_classicalBits N
       (NativeFiniteRetry.Calibration.retryCount η))
 
 /-- The public auxiliary classical budget retains the same independent temporary allowance. -/
@@ -117,7 +122,7 @@ public lemma problem_auxiliary_classicalBits (N : Nat)
         classicalBitBoundAtCount N
           (NativeFiniteRetry.Calibration.retryCount η) := by
   exact congrArg (fun bits => base.auxiliarySpace .classicalBits + bits)
-    (Recycling.Program.rsaRecyclingParent_spaceLimit_classicalBits N
+    (Measured.Program.rsaMeasuredParent_spaceLimit_classicalBits N
       (NativeFiniteRetry.Calibration.retryCount η))
 
 /-- The public resident quantum budget charges one bank at every positive calibrated count. -/
@@ -127,7 +132,7 @@ public lemma problem_resident_qubits (N : Nat)
       base.residentSpace (.quantumSystems 2) +
         qubitBoundAtCount N (NativeFiniteRetry.Calibration.retryCount η) := by
   exact congrArg (fun qubits => base.residentSpace (.quantumSystems 2) + qubits)
-    (Recycling.Program.rsaRecyclingParent_spaceLimit_qubits N
+    (Measured.Program.rsaMeasuredParent_spaceLimit_qubits N
       (NativeFiniteRetry.Calibration.retryCount η))
 
 /-- The public auxiliary quantum coordinate is the same one-bank independent allowance. -/
@@ -137,7 +142,7 @@ public lemma problem_auxiliary_qubits (N : Nat)
       base.auxiliarySpace (.quantumSystems 2) +
         qubitBoundAtCount N (NativeFiniteRetry.Calibration.retryCount η) := by
   exact congrArg (fun qubits => base.auxiliarySpace (.quantumSystems 2) + qubits)
-    (Recycling.Program.rsaRecyclingParent_spaceLimit_qubits N
+    (Measured.Program.rsaMeasuredParent_spaceLimit_qubits N
       (NativeFiniteRetry.Calibration.retryCount η))
 
 /-- Independent scalar ceilings for the seven observed resource coordinates.
@@ -160,18 +165,42 @@ public structure CoordinateLimits where
   /-- Total literal classical operations on the complete execution path. -/
   classicalOperations : Nat
 
-/-- Parameter-only ceilings, including the caller's existing storage. -/
+/-- The tight key-domain problem pool fits the independent full-input observation ceiling. -/
+private lemma problem_eventBudget_le_general (N : Nat) (η : Real) :
+    (problem base noQuantum N η).resources.events ≤
+      Measured.Program.generalEventBudget N (NativeFiniteRetry.Calibration.retryCount η) :=
+  Measured.Program.rsaMeasured_eventBudget_le_general N
+    (NativeFiniteRetry.Calibration.retryCount η)
+
+/-- General full-input ceilings, including the caller and even or small-width moduli.
+The independent tight-key budgets remain the problem/scalar contract allowances. -/
 public def coordinateLimitsAtCount (N count : Nat) : CoordinateLimits where
-  qubits := base.residentSpace (.quantumSystems 2) + Recycling.Program.qubitLimit N count
-  toffoli := gateCountBoundAtCount N count .toffoli
-  cnot := gateCountBoundAtCount N count .cnot
-  singleQubit := gateCountBoundAtCount N count .singleQubit
-  quantumTime := quantumTimeBoundAtCount N count
+  qubits := base.residentSpace (.quantumSystems 2) + Measured.Program.qubitLimit N count
+  toffoli := Measured.Program.generalGateCountLimit N count .toffoli
+  cnot := Measured.Program.generalGateCountLimit N count .cnot
+  singleQubit := Measured.Program.generalGateCountLimit N count .singleQubit
+  quantumTime := Measured.Program.generalQuantumTimeLimit N count
   residentClassicalBits := base.residentSpace .classicalBits +
-    Recycling.Program.classicalBitLimit N count
+    Measured.Program.classicalBitLimit N count
   auxiliaryClassicalBits := base.auxiliarySpace .classicalBits +
-    Recycling.Program.classicalBitLimit N count
-  classicalOperations := classicalOperationBoundAtCount N count
+    Measured.Program.classicalBitLimit N count
+  classicalOperations := Measured.Program.generalClassicalOperationLimit N count
+
+/-- Each tight problem gate allowance fits the corresponding full-input observation ceiling. -/
+public lemma problem_gateCount_le_coordinateLimits (N : Nat) (η : Real)
+    (coordinate : AlgorithmGate.Coordinate) :
+    ResourcePool.count (model := .quantum AlgorithmGate.model .empty BitWord.model)
+      (.gate coordinate) (problem base noQuantum N η).resources.events ≤
+      match coordinate with
+      | .toffoli => (coordinateLimitsAtCount base N
+          (NativeFiniteRetry.Calibration.retryCount η)).toffoli
+      | .cnot => (coordinateLimitsAtCount base N
+          (NativeFiniteRetry.Calibration.retryCount η)).cnot
+      | .singleQubit => (coordinateLimitsAtCount base N
+          (NativeFiniteRetry.Calibration.retryCount η)).singleQubit := by
+  have bounded := ResourcePool.le_iff_count.mp
+    (problem_eventBudget_le_general base noQuantum N η) (.gate coordinate)
+  cases coordinate <;> exact bounded
 
 /-- Seven bounds on one actual complete execution path.
 Generic and fixed ceilings instantiate this same observation contract. -/
@@ -217,22 +246,22 @@ public lemma algorithmAtCount_sevenCoordinates {N : Nat}
     SevenCoordinateBoundsAtCount base noQuantum specification count
       (coordinateLimitsAtCount base N count) path := by
   refine ⟨?_, ?_, ?_, ?_, ?_, ⟨?_, ?_⟩, ?_⟩
-  · exact Recycling.Program.rsaRecyclingParent_run_resident_qubits_le
+  · exact Measured.Program.rsaMeasuredParent_run_resident_qubits_le
       base noQuantum specification count path
-  · exact Recycling.Program.rsaRecyclingParent_run_gateCount_le
-      base noQuantum specification count path .toffoli
-  · exact Recycling.Program.rsaRecyclingParent_run_gateCount_le
-      base noQuantum specification count path .cnot
-  · exact Recycling.Program.rsaRecyclingParent_run_gateCount_le
-      base noQuantum specification count path .singleQubit
-  · exact Recycling.Program.rsaRecyclingParent_run_quantumTime_le
+  · exact Measured.Program.rsaMeasuredGeneral_run_gateCount_le
+      base noQuantum N specification count path .toffoli
+  · exact Measured.Program.rsaMeasuredGeneral_run_gateCount_le
+      base noQuantum N specification count path .cnot
+  · exact Measured.Program.rsaMeasuredGeneral_run_gateCount_le
+      base noQuantum N specification count path .singleQubit
+  · exact Measured.Program.rsaMeasuredGeneral_run_quantumTime_le
       base noQuantum N specification count path
-  · exact Recycling.Program.rsaRecyclingParent_run_resident_classicalBits_le
+  · exact Measured.Program.rsaMeasuredParent_run_resident_classicalBits_le
       base noQuantum specification count path
-  · exact Recycling.Program.rsaRecyclingParent_run_auxiliary_classicalBits_le
+  · exact Measured.Program.rsaMeasuredParent_run_auxiliary_classicalBits_le
       base noQuantum specification count path
-  · exact Recycling.Program.rsaRecyclingParent_run_classicalOperation_le
-      base noQuantum specification count path
+  · exact Measured.Program.rsaMeasuredGeneral_run_classicalOperation_le
+      base noQuantum N specification count path
 
 /-- Calibration specializes the arbitrary-count contract without duplicating its fields. -/
 public abbrev SevenCoordinateBounds {N : Nat} (specification : Canonical.Input N)
@@ -258,7 +287,7 @@ public def keygenOutput (bitWidth : Nat)
     (inputs : QuantumAlg.RSA.RSAKeyPairBits bitWidth →
       Execution.OracleInput ClassicalOracleModel.empty base Reference) :
     PMF (Nat × Nat × Option Nat) :=
-  Recycling.Program.KeyAverage.keygenOutputDistribution (environment := environment)
+  Measured.Program.KeyAverage.keygenOutputDistribution (environment := environment)
     base noQuantum bitWidth nonempty
     (NativeFiniteRetry.Calibration.retryCount η) inputs
 
@@ -269,7 +298,7 @@ lemma keygenOutput_eq (bitWidth : Nat)
     (inputs : QuantumAlg.RSA.RSAKeyPairBits bitWidth →
       Execution.OracleInput ClassicalOracleModel.empty base Reference) :
     keygenOutput (environment := environment) base noQuantum bitWidth nonempty η inputs =
-      Recycling.Program.KeyAverage.keygenOutputDistribution (environment := environment)
+      Measured.Program.KeyAverage.keygenOutputDistribution (environment := environment)
         base noQuantum bitWidth nonempty
         (NativeFiniteRetry.Calibration.retryCount η) inputs := rfl
 
@@ -284,15 +313,15 @@ lemma keygenOutput_eq (bitWidth : Nat)
         ENNReal.ofReal (1 - η) ≤
           (keygenOutput (environment := environment)
             base noQuantum bitWidth nonempty η inputs).toOuterMeasure
-            Recycling.Program.KeyAverage.successEvent
+            Measured.Program.KeyAverage.successEvent
 
 /-- The original eventual full target holds for the actual single-control key average. -/
 public lemma asymptoticKeygenSuccess (η : Real)
     (etaPositive : 0 < η) (_etaLessOne : η < 1) :
     AsymptoticKeygenSuccess (environment := environment) base noQuantum η := by
-  filter_upwards [Recycling.Program.KeyAverage.eventually_success_ge_target (environment :=
-    environment)
-    base noQuantum η etaPositive] with bitWidth success
+  filter_upwards
+    [Measured.Program.KeyAverage.rsaMeasuredKeyAverage_eventually_success_ge_target
+      (environment := environment) base noQuantum η etaPositive] with bitWidth success
   intro nonempty effective Reference inputs
   rw [keygenOutput_eq]
   exact success nonempty effective Reference inputs

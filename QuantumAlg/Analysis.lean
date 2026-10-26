@@ -13,10 +13,15 @@ public import QuantumAlg.Analysis.QuantumFisher.FSBridge
 public import QuantumAlg.Analysis.ParameterShift
 public import QuantumAlg.Analysis.GeneralizedParameterShift
 public import QuantumAlg.Analysis.QNN
-public import QuantumAlg.Analysis.HamiltonianSimulation
+public import QuantumAlg.Analysis.Trotter
 public import QuantumAlg.Analysis.LinearSystem
 public import QuantumAlg.Analysis.QDrift
 public import QuantumAlg.Analysis.FTQC.CliffordT.Word
+public import QuantumAlg.Analysis.FTQC.CliffordT.Ring
+public import QuantumAlg.Analysis.FTQC.CliffordT.Checker
+public import QuantumAlg.Analysis.FTQC.CliffordT.Certificates
+public import QuantumAlg.Analysis.FTQC.CliffordT.Identities
+public import QuantumAlg.Analysis.FTQC.SingleQubit.ZYZ
 public import QuantumAlg.Analysis.UnitaryReversal.Amplification
 public import QuantumAlg.Analysis.UnitaryReversal.Ancilla
 public import QuantumAlg.Analysis.UnitaryReversal.Decoding

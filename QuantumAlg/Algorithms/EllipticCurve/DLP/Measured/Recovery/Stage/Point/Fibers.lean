@@ -442,6 +442,19 @@ lemma selectorRead_basis (width : Nat) (Reference : Register)
       ((NumeratorMeasurement.frameBasis width).symm
         ((ProductPlacement.frameEncoding width).encode state.1.1)) entry.2))
 
+private lemma nativeJoint_reference_matrix (width : Nat) (Reference : Register)
+    (program : NativeCircuit width) :
+    (MeasuredPointAddition.nativeJoint (environment := environment) width Reference program :
+      HilbertOperator (Register.prod (context width).register Reference)) =
+      (((program.binaryMatrix environment.quantum) :
+        HilbertOperator (Qubits (encoding width).width)).submatrix (basis width) (basis width)) ⊗ₖ
+          (1 : HilbertOperator Reference) := by
+  ext row column
+  change UnitaryOperator.prodTensor ((runtimeProgram width program).matrix environment.quantum)
+    (1 : UnitaryOperator Reference) row column = _
+  rw [UnitaryOperator.prodTensor_apply, runtimeProgram_binary_matrix]
+  rfl
+
 private lemma nativeJoint_diagonal_transport (width : Nat) (Reference : Register)
     (program : NativeCircuit width)
     (before after : Fin (2 ^ (encoding width).width) → ℂ)
@@ -458,25 +471,13 @@ private lemma nativeJoint_diagonal_transport (width : Nat) (Reference : Register
         (MeasuredPointAddition.nativeJoint (environment := environment) width Reference program :
           HilbertOperator (Register.prod (context width).register Reference)) := by
   ext row column
-  rw [Matrix.mul_diagonal, Matrix.diagonal_mul]
-  have entry := congrArg (fun matrix : Matrix (Fin (2 ^ (encoding width).width))
-    (Fin (2 ^ (encoding width).width)) ℂ => matrix (basis width row.1)
-      (basis width column.1)) actual
-  simp only [Matrix.mul_diagonal, Matrix.diagonal_mul] at entry
-  change UnitaryOperator.prodTensor ((runtimeProgram width program).matrix environment.quantum)
-      (1 : UnitaryOperator Reference) row column * before (basis width column.1) =
-    after (basis width row.1) *
-      UnitaryOperator.prodTensor ((runtimeProgram width program).matrix environment.quantum)
-        (1 : UnitaryOperator Reference) row column
-  rw [UnitaryOperator.prodTensor_apply, runtimeProgram_binary_matrix]
-  change ((program.binaryMatrix environment.quantum) (basis width row.1) (basis width column.1) *
-      (if row.2 = column.2 then (1 : ℂ) else 0)) * before (basis width column.1) =
-    after (basis width row.1) *
-      ((program.binaryMatrix environment.quantum) (basis width row.1) (basis width column.1) *
-        (if row.2 = column.2 then (1 : ℂ) else 0))
-  by_cases same : row.2 = column.2
-  · simpa only [if_pos same, mul_one] using entry
-  · rw [if_neg same, mul_zero, zero_mul, mul_zero]
+  rw [Matrix.mul_diagonal, Matrix.diagonal_mul, nativeJoint_reference_matrix]
+  have entry := congrArg (fun matrix => matrix row column)
+    (HilbertOperator.kronecker_identity_diagonal_transport
+      (Source := Qubits (encoding width).width) (Target := (context width).register)
+      (Reference := Reference) (basis width)
+      (program.binaryMatrix environment.quantum) before after actual)
+  simpa only [Matrix.mul_diagonal, Matrix.diagonal_mul] using entry
 
 lemma beforeDivision_physical_diagonal {p : Nat} {E : PrimeFieldShortWeierstrass p}
     [Fact p.Prime] (Q : AffinePoint E) (Reference : Register) (weight : Fin 2 → ℂ) :

@@ -6,6 +6,8 @@ Authors: QudeLeap Team
 
 module
 
+import all QuantumAlg.Algorithms.Factoring.EkeraHastadStyle.Sampling.Batch.Success.Count
+
 import all QuantumAlg.Algorithms.Factoring.EkeraHastadStyle.StoreMachine.Retry.Native.Finite.Calibration
 
 /-!
@@ -89,6 +91,65 @@ lemma combinedSuccess_seven_ge_99 :
     ENNReal.ofReal_sub 1 (by norm_num : (0 : Real) ≤ 1 / 100),
     ENNReal.ofReal_one]
   exact tsub_le_tsub_left keygenFailure_seven_lt_onePercent.le 1
+
+/-- Conditional failure of a twenty-member RSA-2048 batch, retaining the
+exact 190-pair obstruction union cost. -/
+def twentyBatchFailure : ENNReal :=
+  ENNReal.ofReal (1 -
+    (1 - RSA.FixedWidthSampling.samplerFailureBound 1024) *
+      (BinomialTail.twentySampleBatchFloor : Real))
+
+/-- The calibrated failure scalar is the complement of the proved twenty-member floor. -/
+lemma twentyBatchFailure_eq_one_sub_successFloor :
+    twentyBatchFailure = 1 - NativeBatchSuccess.twentySuccessFloor 1024 := by
+  have samplerNonneg : 0 ≤ RSA.FixedWidthSampling.samplerFailureBound 1024 := by
+    rw [RSA.FixedWidthSampling.samplerFailureBound,
+      RSA.GeneratorOrder.generatorFailureBound]
+    norm_num
+  have samplerLe : RSA.FixedWidthSampling.samplerFailureBound 1024 ≤ 1 := by
+    rw [RSA.FixedWidthSampling.samplerFailureBound,
+      RSA.GeneratorOrder.generatorFailureBound]
+    norm_num
+  have floorNonneg : 0 ≤ (BinomialTail.twentySampleBatchFloor : Real) := by
+    norm_num [BinomialTail.twentySampleBatchFloor,
+      BinomialTail.atLeastTwoOfTwentyAtOneEighth]
+  unfold twentyBatchFailure NativeBatchSuccess.twentySuccessFloor
+  rw [← ENNReal.ofReal_one, ← ENNReal.ofReal_sub 1 samplerNonneg,
+    ← ENNReal.ofReal_mul (sub_nonneg.mpr samplerLe),
+    ← ENNReal.ofReal_sub 1 (mul_nonneg (sub_nonneg.mpr samplerLe) floorNonneg)]
+
+/-- The original ordered-key exceptional mass is charged once, outside all
+four independent conditional batch failures. -/
+lemma keygenFailure_twentyByFour_lt_onePercent :
+    ENNReal.ofReal (RSA.GeneratorOrder.keyFailureBound 1024) +
+        twentyBatchFailure ^ 4 < ENNReal.ofReal ((1 : Real) / 100) := by
+  have failureNonneg : 0 ≤ 1 -
+      (1 - RSA.FixedWidthSampling.samplerFailureBound 1024) *
+        (BinomialTail.twentySampleBatchFloor : Real) := by
+    rw [RSA.FixedWidthSampling.samplerFailureBound,
+      RSA.GeneratorOrder.generatorFailureBound]
+    norm_num [BinomialTail.twentySampleBatchFloor,
+      BinomialTail.atLeastTwoOfTwentyAtOneEighth]
+  rw [twentyBatchFailure, ← ENNReal.ofReal_pow failureNonneg 4,
+    ← ENNReal.ofReal_add (RSA.GeneratorOrder.keyFailureBound_nonneg 1024)
+      (pow_nonneg failureNonneg 4)]
+  rw [RSA.GeneratorOrder.keyFailureBound,
+    RSA.FixedWidthSampling.samplerFailureBound,
+    RSA.GeneratorOrder.generatorFailureBound,
+    RSA.GeneratorOrder.rsa1024_loss_thresholds.2.2]
+  rw [ENNReal.ofReal_lt_ofReal_iff (by norm_num : (0 : Real) < 1 / 100)]
+  norm_num [BinomialTail.twentySampleBatchFloor,
+    BinomialTail.atLeastTwoOfTwentyAtOneEighth]
+
+/-- The combined key and four-batch failure leaves success at least 99 percent. -/
+lemma combinedSuccess_twentyByFour_ge_99 :
+    ENNReal.ofReal ((99 : Real) / 100) ≤
+      1 - (ENNReal.ofReal (RSA.GeneratorOrder.keyFailureBound 1024) +
+        twentyBatchFailure ^ 4) := by
+  rw [show (99 : Real) / 100 = 1 - 1 / 100 by norm_num,
+    ENNReal.ofReal_sub 1 (by norm_num : (0 : Real) ≤ 1 / 100),
+    ENNReal.ofReal_one]
+  exact tsub_le_tsub_left keygenFailure_twentyByFour_lt_onePercent.le 1
 
 end
 

@@ -6,6 +6,8 @@ Authors: QudeLeap Team
 
 module
 
+import all QuantumAlg.Core.Execution.Context.OwnedLayoutView.Laws
+
 import all QuantumAlg.Core.Execution.Composition.History.Selection
 import all QuantumAlg.Core.Execution.Classical.Branch.Laws
 import all QuantumAlg.Core.Execution.Classical.Iteration
@@ -172,6 +174,11 @@ private lemma execute_selectHistory_of_fixed {model : ExecutionModel}
         (fun original => interpret body environment _ original)
         (fun {_ _} _ _ original read selected =>
           bodyIH environment rfl _ original read selected) state read selected
+  | ownedLayoutView view body bodyIH =>
+      change (view.join (body.execute environment Reference (view.split state))).selectHistory
+        (fun record => read record.2.1) selected = _
+      rw [← view.join_selectHistory, bodyIH environment rfl, ← view.split_selectHistory]
+      rfl
   | parallelClassical join separate first second firstIH secondIH =>
       exact parallelPreserving_selectHistory join separate
         (fun original => interpret first

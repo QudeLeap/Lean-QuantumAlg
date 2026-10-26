@@ -88,16 +88,5 @@ macro "pauliEdgeConjFinish" : tactic =>
       ring_nf <;>
       norm_num))
 
-/-- Select and verify the signed Pauli image of an edge element. -/
-macro "pauliEdgeMemFinish" : tactic =>
-  `(tactic|
-    (simp only [signedRawPauliSet, Set.mem_ofPred_eq]
-     first
-     | left; pauliEdgeConjFinish; done
-     | right; left; pauliEdgeConjFinish; done
-     | right; right; left; pauliEdgeConjFinish; done
-     | right; right; right; left; pauliEdgeConjFinish; done
-     | right; right; right; right; left; pauliEdgeConjFinish; done
-     | right; right; right; right; right; pauliEdgeConjFinish; done))
 
 end QuantumAlg.QubitTwoDesign.PauliNormalizer

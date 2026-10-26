@@ -29,6 +29,7 @@ jobs:
     timeout-minutes: 360
     env:
       GH_TOKEN: ${{ github.token }}
+      LAKE_ARTIFACT_CACHE: "false"
       RELEASE_VERSION: ${{ github.event.client_payload.version || inputs.version }}
       RELEASE_SOURCE_SHA: ${{ github.event.client_payload.source_sha || inputs.source_sha }}
     steps:
@@ -44,7 +45,7 @@ jobs:
         with:
           ref: ${{ github.sha }}
           persist-credentials: false
-      - name: Verify the annotated tag and draft
+      - name: Verify the annotated tag, notes and draft
         id: release
         run: >-
           python3 .github/public-release.py resolve-build
@@ -55,12 +56,33 @@ jobs:
         with:
           auto-config: false
           use-mathlib-cache: true
+          use-github-cache: false
           build: false
           test: false
           lint: false
+      - name: Identify compatible owner cache
+        if: steps.release.outputs.ready == 'true'
+        id: owner-cache-key
+        run: python3 .github/build-cache.py ci-key --root . >> "$GITHUB_OUTPUT"
+      - name: Restore owner cache
+        if: steps.release.outputs.ready == 'true'
+        id: owner-cache
+        uses: actions/cache/restore@v4
+        with:
+          path: ${{ runner.temp }}/quantumalg-owner-cache
+          key: ${{ steps.owner-cache-key.outputs.key }}
+          restore-keys: ${{ steps.owner-cache-key.outputs.restore_prefix }}
+      - name: Validate and apply owner cache
+        if: steps.release.outputs.ready == 'true' && steps.owner-cache.outputs.cache-matched-key != ''
+        run: >-
+          python3 .github/build-cache.py ci-restore --root .
+          --directory "$RUNNER_TEMP/quantumalg-owner-cache"
       - name: Build all library modules
         if: steps.release.outputs.ready == 'true'
         run: python3 .github/build-cache.py build --root .
+      - name: Full custom lint
+        if: steps.release.outputs.ready == 'true'
+        run: python3 .github/full-lint.py --root .
       - name: Pack and restore cache
         if: steps.release.outputs.ready == 'true'
         env:
@@ -69,6 +91,22 @@ jobs:
           python3 .github/build-cache.py pack --root .
           --output-dir "$RUNNER_TEMP/release-build-cache"
           --repository "$CACHE_REPOSITORY" --run-id "$GITHUB_RUN_ID"
+      - name: Stage complete owner cache
+        if: success() && steps.release.outputs.ready == 'true' && steps.owner-cache.outputs.cache-hit != 'true'
+        run: >-
+          python3 .github/build-cache.py ci-stage --root .
+          --directory "$RUNNER_TEMP/quantumalg-owner-cache"
+      - name: Verify staged owner cache without rebuilding
+        if: success() && steps.release.outputs.ready == 'true' && steps.owner-cache.outputs.cache-hit != 'true'
+        run: >-
+          python3 .github/build-cache.py ci-verify --root .
+          --directory "$RUNNER_TEMP/quantumalg-owner-cache"
+      - name: Save successful owner cache
+        if: success() && steps.release.outputs.ready == 'true' && steps.owner-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: ${{ runner.temp }}/quantumalg-owner-cache
+          key: ${{ steps.owner-cache-key.outputs.key }}
       - name: Upload cache archive
         if: steps.release.outputs.ready == 'true'
         run: >-

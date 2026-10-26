@@ -405,13 +405,12 @@ lemma actual_public_terminal_observation_weight
                   ((AllocatedFixed.placement E (orderWidth problem)).frame.register.prod
                     Reference))) :=
     by
-  dsimp only [allocatedChildInput, splitChildInput]
-  erw [Sampling.circuit_execute,
-    indicator_mapHistory (ctx := Recovery.PublicInput.context E (orderWidth problem))
+  rw [actual_public_sampling_execute (environment := environment)
+    (Reference := Reference) (History := History) E fieldTail odd seed problem points state]
+  erw [indicator_mapHistory (ctx := Recovery.PublicInput.context E (orderWidth problem))
       (Reference := Reference),
-    Circuit.circuit_execute_embed,
     indicator_join (Reference := Reference) (AllocatedFixed.placement E (orderWidth problem)),
-    ExecutionState.effectWeight_mapClassical_decision, Sampling.body_execute,
+    ExecutionState.effectWeight_mapClassical_decision,
     State.mapHistory, ExecutionState.effectWeight_mapClassical_decision]
   apply congrArg
   funext record

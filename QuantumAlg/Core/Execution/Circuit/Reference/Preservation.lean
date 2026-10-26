@@ -6,6 +6,8 @@ Authors: QudeLeap Team
 
 module
 
+import all QuantumAlg.Core.Execution.Context.OwnedLayoutView.Laws
+
 import all QuantumAlg.Core.Execution.Composition.Reference.Preservation
 import all QuantumAlg.Core.Execution.Interpret.Laws
 import all QuantumAlg.Core.Execution.Classical.Iteration
@@ -122,6 +124,10 @@ private lemma execute_referenceMarginal_of_fixed {model : ExecutionModel}
       exact embedPreserving_referenceMarginal placement Reference
         (fun {_} _ original => interpret body environment _ original)
         (fun {_} _ original => bodyIH environment rfl original) state
+  | ownedLayoutView view body bodyIH =>
+      change (view.join
+        (body.execute environment Reference (view.split state))).referenceMarginal = _
+      rw [view.join_referenceMarginal, bodyIH environment rfl, view.split_referenceMarginal]
   | parallelClassical join separate first second firstIH secondIH =>
       exact parallelPreserving_referenceMarginal join separate
         (fun {_} _ original => interpret first

@@ -182,7 +182,7 @@ lemma actual_two_block_words {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact 
   intro secondWord _
   apply Finset.sum_congr rfl
   intro firstWord _
-  rw [mul_comm (G := ℂ)]
+  exact congrArg (fun scalar : ℂ => scalar • _) (mul_comm _ _)
 
 end
 

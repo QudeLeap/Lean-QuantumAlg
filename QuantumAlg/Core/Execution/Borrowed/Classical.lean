@@ -222,7 +222,7 @@ lemma borrowedClassicalCells_preserved {model : ExecutionModel} {pre post : Runt
         pre.borrowedClassicalCells := by
   induction code with
   | id | classical | classicalQuery | unitary | measureZ | iterate | workspace
-  | embed | parallelClassical | parallelQuantum => rfl
+  | embed | ownedLayoutView | parallelClassical | parallelQuantum => rfl
   | retain ctx key shape fresh => exact ctx.borrowedClassicalCells_addRetained key shape fresh
   | prepareZero ctx key layout fresh disjoint =>
       exact ctx.borrowedClassicalCells_addOwnedLayout key layout fresh disjoint

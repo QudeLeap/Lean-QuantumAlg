@@ -24,6 +24,7 @@ import all QuantumAlg.Core.Base.Gate.Unitary.Reindex
 import all QuantumAlg.Core.Algorithm.Unitary.Borrowed
 import all QuantumAlg.Primitives.MAU.Addition.TTK.Low.Semantics
 import all QuantumAlg.Primitives.MAU.Addition.TTK.Resources
+import all QuantumAlg.Primitives.MAU.Addition.TTK.Parallel
 
 /-!
 # Complete native TTK low-word addition
@@ -60,7 +61,7 @@ private def program (width : Nat) :
   Execution.unitaryOfEqualWires
     (QubitLayout.canonical (encoding width).width).toQuantum
     (context (width + width)).quantumLayout (supplied_wires width)
-      (lowRippleProgram width)
+      (parallelLowRippleProgram width)
 
 private lemma program_matrix (width : Nat) :
     ((program width).matrix interpretation) = semanticOperator width := by
@@ -80,7 +81,8 @@ private lemma program_matrix (width : Nat) :
             ((lowRippleProgram width).matrix interpretation)) = _ at binary
     rw [UnitaryOperator.unitaryOperator_reindex_cancel] at binary
     exact binary
-  rw [program, Execution.unitaryOfEqualWires_matrix, sourceMatrix]
+  rw [program, Execution.unitaryOfEqualWires_matrix,
+    ttkParallelLowRipple_matrix, sourceMatrix]
   apply Subtype.ext
   ext row column
   rfl
@@ -101,13 +103,14 @@ phase on every joint input; the classical result is unit.
 and 2*(width-1) Toffolis, with truncated natural subtraction. Resident and owned
 auxiliary coordinates are both 2*width qubits, describing the same supplied
 operands. No extra qubits, other dimensions or classical cells are allocated.
-Unit-duration serial depth is at most width+4*(width-1)+2*(width-2).
+Unit-duration depth is `5*width-5` for width at least two. The independent
+first and final CNOT stages execute as actual parallel layers.
 **Success.** Probability one with exact joint-state action. The zero-width
 circuit has no events; the width-one circuit is one CNOT.
 **Source.** The ancilla-free ripple construction is
-[TTK09, qic-loglogaddition-quant.tex:285-318,330-352]. The actual serialized gate
-schedule and its boundary-width counts are proved for this implementation;
-the source's parallel schedule is not used for this depth bound.
+[TTK09, qic-loglogaddition-quant.tex:285-318,330-352]. The actual parallel
+schedule retains every physical gate, operand and dependency. Its low-word
+depth and boundary-width counts are proved for this implementation.
 -/
 public def problem (width : Nat) :
     Problem (.quantum AlgorithmGate.model .empty)
@@ -127,9 +130,10 @@ public def problem (width : Nat) :
             (.gate .toffoli)
       resident := space (width + width)
       auxiliary := space (width + width) }
-  quantumTimeLimit := width + 4 * (width - 1) + 2 * (width - 2)
+  quantumTimeLimit := (if width - 1 = 0 then 0 else 1) +
+    (3 * (width - 1) + 2 * (width - 2)) + (if width = 0 then 0 else 1)
 
-/-- Execute the literal low-word ripple and retain both supplied operands. -/
+/-- Execute the physically rescheduled low-word ripple and retain both supplied operands. -/
 public def algorithm (width : Nat) :
     Algorithm (.quantum AlgorithmGate.model .empty)
       (context (width + width)) (context (width + width)) .unit where
@@ -138,12 +142,12 @@ public def algorithm (width : Nat) :
 private lemma actual_events (width : Nat) (path : (code width).Path) :
     (code width).resourcePool path = (problem width).resources.events := by
   change ResourcePool.ofList (program width).eventTrace = _
-  have cost : (program width).eventCost = (lowRippleProgram width).eventCost :=
+  have cost : (program width).eventCost = (parallelLowRippleProgram width).eventCost :=
     Execution.unitaryOfEqualWires_cost
       (QubitLayout.canonical (encoding width).width).toQuantum
       (context (width + width)).quantumLayout (supplied_wires width)
-      (lowRippleProgram width) .empty .empty
-  rw [UnitaryCircuit.ofList_eventTrace_eq_eventCost, cost]
+      (parallelLowRippleProgram width) .empty .empty
+  rw [UnitaryCircuit.ofList_eventTrace_eq_eventCost, cost, ttkParallelLowRipple_eventCost]
   apply Multiset.ext.mpr
   intro event
   change ResourcePool.count event (lowRippleProgram width).eventCost = _
@@ -167,10 +171,11 @@ private lemma actual_auxiliary (width : Nat) (path : (code width).Path) :
 
 private lemma actual_depth (width : Nat) (path : (code width).Path) :
     (code width).depth (fun _ => 1) path =
-      width + 4 * (width - 1) + 2 * (width - 2) := by
+      (if width - 1 = 0 then 0 else 1) + (3 * (width - 1) + 2 * (width - 2)) +
+        (if width = 0 then 0 else 1) := by
   change DepthExpr.depthEval (fun _ => 1) ((program width).eventDepth .empty .empty) = _
   rw [program, Execution.unitaryOfEqualWires_depth]
-  exact ttkLowRipple_serial_depth width
+  exact ttkParallelLowRipple_unitDepth width
 
 /-- The actual ancilla-free ripple solves the independent all-state addition problem. -/
 public theorem main (width : Nat) :

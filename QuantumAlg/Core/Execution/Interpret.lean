@@ -15,6 +15,7 @@ import all QuantumAlg.Core.Execution.Control
 import all QuantumAlg.Core.Execution.Interpret.Preserving
 import all QuantumAlg.Core.Execution.Composition.Embedding
 import all QuantumAlg.Core.Execution.Composition.Parallel
+import all QuantumAlg.Core.Execution.Context.OwnedLayoutView
 
 /-!
 # One interpretation of typed circuits
@@ -114,6 +115,10 @@ def interpret {model : ExecutionModel} {pre post : RuntimeCtx model.kind}
   | .embed placement body =>
       embedPreserving placement Reference
         (interpret body environment (Register.prod placement.frame.register Reference))
+  | .ownedLayoutView view body => fun state =>
+      let result := interpret body environment Reference (view.split state)
+      ⟨view.join result.val,
+        (view.join_mass result.val).trans (result.property.trans (view.split_mass state))⟩
   | .parallelClassical (left := left) (right := right) join separate first second =>
       parallelPreserving join separate
         (interpret first ⟨environment.quantum, join.interpretationLeft environment.classical⟩

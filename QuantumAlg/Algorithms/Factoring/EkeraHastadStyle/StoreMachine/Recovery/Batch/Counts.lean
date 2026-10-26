@@ -18,7 +18,7 @@ import all QuantumAlg.Core.Base.Accounting.ClassicalWeight
 The coordinate allowance includes both branch arms and the full signed-word
 alphabet used by LLL and nearest-plane recovery. Its cardinality therefore has
 its own ceiling. The actual allocated circuit inherits that ceiling from its
-native pool theorem, including initialization, all 120 pairs, thirteen paid
+native pool theorem, including initialization, all unordered pairs, thirteen paid
 classical clears per pair, and the final output writes.
 -/
 
@@ -28,6 +28,8 @@ open Execution ClassicalRoutines LatticeRecoveryResources
 
 noncomputable section
 
+variable {additionalMembers : Nat}
+
 variable {model : ExecutionModel} [BitWord.Selected model]
 
 /-- Full signed-word coordinate allowance for source loading, LLL, and nearest plane. -/
@@ -35,8 +37,9 @@ def nearestPlaneEnvelopeBound (m ell : Nat) : Nat :=
   8 * m + 12 * ell + 2243 + 2210 * RSA.shortLogRecoveryFuel m ell
 
 /-- Independent width ceiling for the complete native coordinate allowance. -/
-def eventCountBound (modulusWidth m ell coordinateWidth : Nat) : Nat :=
-  modularSetupCardBound modulusWidth + 11 + 120 *
+def eventCountBound (modulusWidth m ell coordinateWidth : Nat)
+    (additionalMembers : Nat := 14) : Nat :=
+  modularSetupCardBound modulusWidth + 11 + (Nat.choose (additionalMembers + 2) 2) *
     (13 + (nearestPlaneEnvelopeBound m ell + (m + 3) +
       modularSetupCardBound modulusWidth + candidateScanCardBound modulusWidth coordinateWidth +
       quadraticGuardedCardBound coordinateWidth))
@@ -129,13 +132,13 @@ private lemma reusable_card_le (N : Nat) :
   exact Nat.add_le_add_left (Nat.add_le_add candidate quadratic) 13
 
 /-- Cardinality of the complete independent native pool obeys the closed width ceiling. -/
-lemma eventEnvelope_card_le (N : Nat) :
-    (eventEnvelope (model := model) N).card ≤
+lemma eventEnvelope_card_le (N : Nat) (additionalMembers : Nat := 14) :
+    (eventEnvelope (model := model) N additionalMembers).card ≤
       eventCountBound (modulusBits N) (shortLogBits N) (tradeoffBits N)
-        (LatticePairCandidateRecovery.Width N) := by
+        (LatticePairCandidateRecovery.Width N) additionalMembers := by
   have pair := reusable_card_le (model := model) N
-  have pairCount : LatticePairRecoveryFold.PairCount = 120 := by
-    norm_num [LatticePairRecoveryFold.PairCount, Nat.choose]
+  have pairCount : LatticePairRecoveryFold.PairCount additionalMembers =
+      Nat.choose (additionalMembers + 2) 2 := rfl
   have initialization : (QuadraticScratchInitialization.eventEnvelope (model := model) N).card =
       4 := rfl
   have seed : (LatticeEarlyFactorSeed.eventEnvelope (model := model) N).card = 5 := rfl
@@ -145,7 +148,7 @@ lemma eventEnvelope_card_le (N : Nat) :
     LatticeBatchRecoveryTail.eventEnvelope, LatticePairRecoveryFold.eventEnvelope,
     Multiset.card_add, ResourcePool.scale, Multiset.card_nsmul, pairCount,
     modularSetupEventEnvelope_card_eq, initialization, seed, output]
-  have scaled := Nat.mul_le_mul_left 120 pair
+  have scaled := Nat.mul_le_mul_left (Nat.choose (additionalMembers + 2) 2) pair
   unfold eventCountBound
   omega
 
@@ -162,35 +165,35 @@ private lemma classicalWeight_le_card (pool : ResourcePool model) :
       omega
 
 /-- Canonical classical-operation weight is bounded by the complete native event ceiling. -/
-lemma eventEnvelope_classicalWeight_le (N : Nat) :
+lemma eventEnvelope_classicalWeight_le (N : Nat) (additionalMembers : Nat := 14) :
     ResourcePool.weightedCount Resource.Event.classicalOperationWeight
-      (eventEnvelope (model := model) N) ≤
+      (eventEnvelope (model := model) N additionalMembers) ≤
       eventCountBound (modulusBits N) (shortLogBits N) (tradeoffBits N)
-        (LatticePairCandidateRecovery.Width N) :=
-  (classicalWeight_le_card _).trans (eventEnvelope_card_le N)
+        (LatticePairCandidateRecovery.Width N) additionalMembers :=
+  (classicalWeight_le_card _).trans (eventEnvelope_card_le N additionalMembers)
 
 variable {ctx : RuntimeCtx model.kind} {N : Nat}
 
 /-- Each complete allocated path inherits the independent ceiling from its actual native pool. -/
 lemma into_eventCount_le (input : Input N) (parameter : CInputRef ctx (ParameterShape N))
-    (terminals : LatticePairRecoveryBatch.Terminals ctx N)
+    (terminals : LatticePairRecoveryBatch.Terminals ctx N additionalMembers)
     (result : CWriteRef ctx (LatticeBatchRecoveryOutput.OutputShape N))
     (path : (into ctx input parameter terminals result).Path) :
     ((into ctx input parameter terminals result).eventTrace path).length ≤
       eventCountBound (modulusBits N) (shortLogBits N) (tradeoffBits N)
-        (LatticePairCandidateRecovery.Width N) :=
+        (LatticePairCandidateRecovery.Width N) additionalMembers :=
   (Multiset.card_le_card (into_pool_le input parameter terminals result path)).trans
-    (eventEnvelope_card_le N)
+    (eventEnvelope_card_le N additionalMembers)
 
 /-- Every literal classical operation is charged on that same complete allocated path. -/
 lemma into_classicalWeight_le (input : Input N) (parameter : CInputRef ctx (ParameterShape N))
-    (terminals : LatticePairRecoveryBatch.Terminals ctx N)
+    (terminals : LatticePairRecoveryBatch.Terminals ctx N additionalMembers)
     (result : CWriteRef ctx (LatticeBatchRecoveryOutput.OutputShape N))
     (path : (into ctx input parameter terminals result).Path) :
     ResourcePool.weightedCount Resource.Event.classicalOperationWeight
       ((into ctx input parameter terminals result).resourcePool path) ≤
       eventCountBound (modulusBits N) (shortLogBits N) (tradeoffBits N)
-        (LatticePairCandidateRecovery.Width N) :=
+        (LatticePairCandidateRecovery.Width N) additionalMembers :=
   (classicalWeight_le_card _).trans (into_eventCount_le input parameter terminals result path)
 
 end

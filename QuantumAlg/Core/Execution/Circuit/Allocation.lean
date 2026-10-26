@@ -27,7 +27,7 @@ private lemma endpoints_of_fixed {model : ExecutionModel}
     pre = post := by
   induction code with
   | id | classical | classicalQuery | unitary | measureZ | iterate
-  | embed | parallelClassical | parallelQuantum => rfl
+  | embed | ownedLayoutView | parallelClassical | parallelQuantum => rfl
   | retain | prepareZero | workspace => cases fixed
   | seq first second firstIH secondIH => exact (firstIH fixed).trans (secondIH fixed)
   | branch input body bodyIH => exact bodyIH (CShape.initialValue _) fixed
@@ -44,7 +44,8 @@ private lemma visited_of_fixed {model : ExecutionModel}
     (present : visited ∈ code.visitedContexts path) : visited = pre := by
   induction code with
   | id | classical | classicalQuery | unitary | measureZ
-  | embed | parallelClassical | parallelQuantum => exact List.mem_singleton.mp present
+  | embed | ownedLayoutView | parallelClassical | parallelQuantum =>
+      exact List.mem_singleton.mp present
   | retain | prepareZero | workspace => cases fixed
   | seq first second firstIH secondIH =>
       rcases List.mem_append.mp present with before | after

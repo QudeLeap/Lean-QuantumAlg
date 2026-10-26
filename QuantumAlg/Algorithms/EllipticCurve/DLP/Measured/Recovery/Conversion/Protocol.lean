@@ -8,6 +8,7 @@ module
 
 import all QuantumAlg.Algorithms.EllipticCurve.DLP.Measured.Recovery.Conversion.Placement
 import all QuantumAlg.Algorithms.EllipticCurve.DLP.Measured.Recovery.Stage.Path.Density
+import all QuantumAlg.Util.Matrix.Trace.Convert
 
 /-!
 # A literal allocation-free four-conversion wrapper around the actual streaming stages
@@ -80,8 +81,8 @@ lemma convertedTraceKraus_four_factors {p : Nat} (E : PrimeFieldShortWeierstrass
         Matrix _ _ ℂ) := by
   simp only [convertedTraceKraus, pairOperator, Matrix.mul_assoc]
 
-/-- Actual four-conversion streaming execution preserves the complete original Store CP fibers. -/
-lemma actual_convertedStages_store_density {p : Nat} (E : PrimeFieldShortWeierstrass p)
+/-- Compose the actual inverse, path instrument and forward conversion before finite algebra. -/
+private lemma convertedStages_prepared_density {p : Nat} (E : PrimeFieldShortWeierstrass p)
     [Fact p.Prime] {m : Nat} (r : Nat) (points : Fin (2 * m) → AffinePoint E)
     (coefficient : (ZMod p)ˣ) (Reference : Register) (count : Nat)
     (indices : Fin count → Fin (2 * m)) {History : Type} [Fintype History]
@@ -90,15 +91,13 @@ lemma actual_convertedStages_store_density {p : Nat} (E : PrimeFieldShortWeierst
     (final : Store (Recovery.Layout.terminal p.size m)) :
     storeDensity ((convertedStages E r points (List.ofFn indices) coefficient).execute environment
       Reference state) final =
-      ∑ path : Fin count → Branch p.size m,
-        ∑ original : Store (Recovery.Layout.terminal p.size m),
-          if traceValid p.size m count indices path original final then
-            convertedTraceKraus (environment := environment) E r points coefficient Reference
-              count indices path *
-              storeDensity state original *
-              (convertedTraceKraus (environment := environment) E r points coefficient Reference
-                count indices path).conjTranspose
-          else 0 := by
+      pairOperator (environment := environment) p.size m (InPlaceTarget.modulusWord p)
+          coefficient Reference *
+        traceDensity (environment := environment) E r points Reference count indices
+          (storeDensity ((pairCircuit p.size m (InPlaceTarget.modulusWord p) coefficient⁻¹).execute
+            environment Reference state)) final *
+        (pairOperator (environment := environment) p.size m (InPlaceTarget.modulusWord p)
+          coefficient Reference).conjTranspose := by
   let inverse := pairCircuit p.size m (InPlaceTarget.modulusWord p) coefficient⁻¹
   let forward := pairCircuit p.size m (InPlaceTarget.modulusWord p) coefficient
   let body := Recovery.Stage.stages E r points (List.ofFn indices)
@@ -123,32 +122,50 @@ lemma actual_convertedStages_store_density {p : Nat} (E : PrimeFieldShortWeierst
     ((pair_store_density p.size m (InPlaceTarget.modulusWord p) coefficient Reference
       (body.execute environment Reference (inverse.execute environment Reference state))
         final).trans ?_)
-  refine (congrArg
+  exact congrArg
     (fun density : Matrix ((Recovery.Layout.terminal p.size m).register.prod Reference).Index
         ((Recovery.Layout.terminal p.size m).register.prod Reference).Index ℂ =>
       operator * density * operator.conjTranspose)
     (actual_trace_density E r points Reference count indices
-      (inverse.execute environment Reference state) final)).trans ?_
-  simp only [traceDensity, Matrix.mul_sum, Matrix.sum_mul]
-  apply Finset.sum_congr rfl
-  intro path _
-  apply Finset.sum_congr rfl
-  intro original _
-  by_cases valid : traceValid p.size m count indices path original final
-  · simp only [if_pos valid]
-    have input := pair_store_density (environment := environment) p.size m
-      (InPlaceTarget.modulusWord p) coefficient⁻¹
-      Reference state original
-    refine (congrArg
-      (fun density : Matrix ((Recovery.Layout.terminal p.size m).register.prod Reference).Index
-          ((Recovery.Layout.terminal p.size m).register.prod Reference).Index ℂ =>
-        operator * (traceKraus (environment := environment) E r points Reference count indices
-          path * density *
-          (traceKraus (environment := environment) E r points Reference count indices
-            path).conjTranspose) *
-          operator.conjTranspose) input).trans ?_
-    simp only [operator, convertedTraceKraus, Matrix.conjTranspose_mul, Matrix.mul_assoc]
-  · simp only [if_neg valid, Matrix.mul_zero, Matrix.zero_mul]
+      (inverse.execute environment Reference state) final)
+
+/-- Actual four-conversion streaming execution preserves the complete original Store CP fibers. -/
+lemma actual_convertedStages_store_density {p : Nat} (E : PrimeFieldShortWeierstrass p)
+    [Fact p.Prime] {m : Nat} (r : Nat) (points : Fin (2 * m) → AffinePoint E)
+    (coefficient : (ZMod p)ˣ) (Reference : Register) (count : Nat)
+    (indices : Fin count → Fin (2 * m)) {History : Type} [Fintype History]
+    (state : State (Recovery.Layout.terminal p.size m) Reference
+      (ClassicalOracleModel.empty.HiddenState × History))
+    (final : Store (Recovery.Layout.terminal p.size m)) :
+    storeDensity ((convertedStages E r points (List.ofFn indices) coefficient).execute environment
+      Reference state) final =
+      ∑ path : Fin count → Branch p.size m,
+        ∑ original : Store (Recovery.Layout.terminal p.size m),
+          if traceValid p.size m count indices path original final then
+            convertedTraceKraus (environment := environment) E r points coefficient Reference
+              count indices path *
+              storeDensity state original *
+              (convertedTraceKraus (environment := environment) E r points coefficient Reference
+                count indices path).conjTranspose
+          else 0 := by
+  have prepared := convertedStages_prepared_density (environment := environment)
+    E r points coefficient Reference count indices state final
+  have algebra := MatrixTrace.sandwich_sum_of_prepared
+    (Path := Fin count → Branch p.size m)
+    (Store := Store (Recovery.Layout.terminal p.size m))
+    (Index := ((Recovery.Layout.terminal p.size m).register.prod Reference).Index)
+    (pairOperator (environment := environment) p.size m (InPlaceTarget.modulusWord p)
+      coefficient Reference)
+    (pairOperator (environment := environment) p.size m (InPlaceTarget.modulusWord p)
+      coefficient⁻¹ Reference)
+    (traceKraus (environment := environment) E r points Reference count indices)
+    (fun path original => traceValid p.size m count indices path original final)
+    (storeDensity ((pairCircuit p.size m (InPlaceTarget.modulusWord p) coefficient⁻¹).execute
+      environment Reference state)) (storeDensity state)
+    (fun original => pair_store_density (environment := environment) p.size m
+      (InPlaceTarget.modulusWord p) coefficient⁻¹ Reference state original)
+  exact prepared.trans (by
+    simpa only [traceDensity, convertedTraceKraus] using algebra)
 
 end
 

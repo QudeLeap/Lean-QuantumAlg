@@ -6,6 +6,8 @@ Authors: QudeLeap Team
 
 module
 
+import all QuantumAlg.Core.Execution.Context.OwnedLayoutView.Laws
+
 import all QuantumAlg.Core.Execution.State.History
 import all QuantumAlg.Core.Execution.Classical.Iteration
 import all QuantumAlg.Core.Execution.Interpret.Laws
@@ -207,6 +209,11 @@ lemma execute_mapHistory {model : ExecutionModel} {pre post : RuntimeCtx model.k
       exact embedPreserving_history placement Reference
         (fun original => interpret body environment _ original)
         (fun {_ _} _ _ original update => bodyIH environment _ original update) state update
+  | ownedLayoutView view body bodyIH =>
+      change view.join (body.execute environment Reference
+        (view.split (state.mapHistory (fun record => (record.1, update record.2))))) = _
+      rw [view.split_mapHistory, bodyIH, view.join_mapHistory]
+      rfl
   | parallelClassical join separate first second firstIH secondIH =>
       exact parallelPreserving_history join separate
         (fun original => interpret first

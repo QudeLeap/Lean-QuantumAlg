@@ -103,6 +103,44 @@ lemma sampledBatchOutputPMF_some_sound {N factor : Nat} (input : Input N)
   rcases member with ⟨sample, _sampleMember, result⟩
   exact fixedBatchOutputPMF_some_sound input sample result
 
+/-- Fresh terminal measurements of the same internally selected
+prepared residue. The generic source uses sixteen members by default. -/
+def fixedBatchInputPMFAtCount {N : Nat} (input : Input N)
+    (sample : Fin (2 ^ residueSamplingBits N)) (sampleCount : Nat) :
+    PMF (List.Vector (PreparedBatchSample N) sampleCount) :=
+  PMF.independentReplicateVector (fixedPreparedSamplePMF input sample) sampleCount
+
+/-- Closed output law for all unordered recovery pairs of one fixed prepared unit. -/
+def fixedBatchOutputPMFAtCount {N : Nat} (input : Input N)
+    (sample : Fin (2 ^ residueSamplingBits N)) (sampleCount : Nat) : PMF (Option Nat) :=
+  (fixedBatchInputPMFAtCount input sample sampleCount).map
+    (BatchRecovery.batchValue N (registerParameters N).m
+      (registerParameters N).ell)
+
+/-- Successful fixed-generator batch outputs are checked nontrivial factors. -/
+lemma fixedBatchOutputPMFAtCount_some_sound {N factor sampleCount : Nat} (input : Input N)
+    (sample : Fin (2 ^ residueSamplingBits N))
+    (member : some factor ∈ (fixedBatchOutputPMFAtCount input sample sampleCount).support) :
+    factor ∣ N ∧ 1 < factor ∧ factor < N := by
+  rw [fixedBatchOutputPMFAtCount, PMF.mem_support_map_iff] at member
+  rcases member with ⟨samples, _samplesMember, result⟩
+  exact BatchRecovery.batchValue_some_sound result
+
+/-- One complete internally sampled batch: sample the residue once, then run
+the fixed-member repeated-measurement law and closed recovery. -/
+def sampledBatchOutputPMFAtCount {N : Nat} (input : Input N)
+    (sampleCount : Nat) : PMF (Option Nat) :=
+  (PMF.uniformOfFintype (Fin (2 ^ residueSamplingBits N))).bind
+    (fun sample => fixedBatchOutputPMFAtCount input sample sampleCount)
+
+/-- Every successful internally sampled batch output is a nontrivial factor. -/
+lemma sampledBatchOutputPMFAtCount_some_sound {N factor sampleCount : Nat} (input : Input N)
+    (member : some factor ∈ (sampledBatchOutputPMFAtCount input sampleCount).support) :
+    factor ∣ N ∧ 1 < factor ∧ factor < N := by
+  rw [sampledBatchOutputPMFAtCount, PMF.mem_support_bind_iff] at member
+  rcases member with ⟨sample, _sampleMember, result⟩
+  exact fixedBatchOutputPMFAtCount_some_sound input sample result
+
 end
 
 end QuantumAlg.Factoring.EkeraHastadStyle.Canonical

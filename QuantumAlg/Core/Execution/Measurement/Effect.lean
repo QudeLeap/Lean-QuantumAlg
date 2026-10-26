@@ -46,6 +46,23 @@ lemma projector_applyVec (readout : R.Index → Outcome) (outcome : Outcome)
   rw [Matrix.mulVec_diagonal]
   split_ifs <;> simp_all
 
+/-- A retained measurement keeps exactly its selected computational-basis ket. -/
+lemma projector_ket {R : Register} {Outcome : Type} [decision : DecidableEq Outcome]
+    (readout : R.Index → Outcome) (outcome : Outcome) (value : R.Index) :
+    (ZMeasurement.projector readout outcome).applyVec
+        (NormalizedVector.ket (R := R) value).vec =
+      if readout value = outcome then (NormalizedVector.ket (R := R) value).vec else 0 := by
+  cases Subsingleton.elim decision (Classical.decEq Outcome)
+  ext row
+  rw [ZMeasurement.projector_applyVec]
+  by_cases same : row = value
+  · subst row
+    simp only [NormalizedVector.ket_apply, if_true]
+    split_ifs <;> simp_all [NormalizedVector.ket_apply]
+  · simp only [NormalizedVector.ket_apply, same, if_false]
+    split_ifs <;> simp_all [NormalizedVector.ket_apply]
+
+
 variable [Fintype Outcome]
 
 /-- The disjoint readout fibers account for the complete squared vector norm. -/

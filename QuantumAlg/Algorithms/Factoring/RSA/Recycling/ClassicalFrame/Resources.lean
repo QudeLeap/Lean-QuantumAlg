@@ -23,13 +23,15 @@ namespace QuantumAlg.Factoring.RSA.Recycling.ClassicalFrame
 
 noncomputable section
 
+variable [configuration : Configuration]
+
 open Execution ShortDLP.CompiledMAU
 open EkeraHastadStyle.Canonical
 
-/-- Independent capacity of one source pair, sixteen packed outcomes, and its factor. -/
+/-- Independent capacity of one source pair, configured packed outcomes, and its factor. -/
 def batchSpace (N : Nat) : SpacePool .quantum :=
   SpacePool.ofShape (.bits (residueSamplingBits N)) + SpacePool.ofShape (ParameterShape N) +
-    16 • SpacePool.ofShape (.bits (measurementBits N)) +
+    membersPerBatch • SpacePool.ofShape (.bits (measurementBits N)) +
       SpacePool.ofShape (LatticeBatchRecoveryOutput.OutputShape N)
 
 /-- All batches and the distinct final selected-factor destination are live together. -/
@@ -38,8 +40,9 @@ def frameSpace (N count : Nat) : SpacePool .quantum :=
 
 /-- The exact binary capacity includes complete parameter flags and every optional-factor tag. -/
 def classicalBits (N count : Nat) : Nat :=
-  count * (19 * modulusBits N + 16 * measurementBits N + 2) + modulusBits N + 1
+  count * (19 * modulusBits N + membersPerBatch * measurementBits N + 2) + modulusBits N + 1
 
+omit configuration in
 private lemma sampler_resultSpace (N : Nat) :
     ShorStyle.Canonical.Sampler.Retained.resultSpace .quantum (ShorStyle.Canonical.modulusBits N) =
       SpacePool.ofShape (.bits (residueSamplingBits N)) + SpacePool.ofShape (ParameterShape N) := by
@@ -133,6 +136,7 @@ lemma rsaRecyclingFrame_auxiliary_classicalBits (base : RuntimeCtx .quantum) (N 
   rw [rsaRecyclingFrame_context_auxiliary, rsaRecyclingFrame_frameSpace_eq]
   rfl
 
+omit configuration in
 /-- Allocating packed destinations peaks at their actual final retained context. -/
 lemma rsaRecyclingFrame_allocatePacked_resident (m ell width : Nat)
     (base : RuntimeCtx .quantum) (count : Nat)
@@ -158,6 +162,7 @@ lemma rsaRecyclingFrame_allocatePacked_resident (m ell width : Nat)
       rw [RuntimeResults.shortDLP_runtimeResults_resident]
       exact le_add_of_nonneg_left zero_le
 
+omit configuration in
 /-- Packed-cell auxiliary peak equals the same actual final retained roles. -/
 lemma rsaRecyclingFrame_allocatePacked_auxiliary (m ell width : Nat)
     (base : RuntimeCtx .quantum) (count : Nat)
@@ -203,7 +208,8 @@ lemma rsaRecyclingFrame_allocateBatch_resident (base : RuntimeCtx .quantum) (N :
   have joined := Circuit.peakResidentSpace_seq
     (ShorStyle.Canonical.Sampler.Retained.allocation
       (model := ShortDLP.CompiledMAU.Recycling.model) base N)
-    ((allocatePacked (shortLogBits N) (tradeoffBits N) (arithmeticBits N) (sampled base N) 16).seq
+    ((allocatePacked (shortLogBits N) (tradeoffBits N) (arithmeticBits N) (sampled base N)
+      membersPerBatch).seq
       (Circuit.retain (model := ShortDLP.CompiledMAU.Recycling.model)
         (outcomes base N) (outcomes base N).canonicalFreshKey
         (LatticeBatchRecoveryOutput.OutputShape N) (outcomes base N).canonicalFreshKey_fresh)) path
@@ -213,14 +219,16 @@ lemma rsaRecyclingFrame_allocateBatch_resident (base : RuntimeCtx .quantum) (N :
       (model := ShortDLP.CompiledMAU.Recycling.model) base N path.1).trans
         (sampled_resident_le base N)
   · have tail := Circuit.peakResidentSpace_seq
-      (allocatePacked (shortLogBits N) (tradeoffBits N) (arithmeticBits N) (sampled base N) 16)
+      (allocatePacked (shortLogBits N) (tradeoffBits N) (arithmeticBits N) (sampled base N)
+        membersPerBatch)
       (Circuit.retain (model := ShortDLP.CompiledMAU.Recycling.model)
         (outcomes base N) (outcomes base N).canonicalFreshKey
         (LatticeBatchRecoveryOutput.OutputShape N) (outcomes base N).canonicalFreshKey_fresh)
       path.2
     have normalized := tail.trans (congrArg₂ SpacePool.max
       (rsaRecyclingFrame_allocatePacked_resident
-        (shortLogBits N) (tradeoffBits N) (arithmeticBits N) (sampled base N) 16 path.2.1)
+        (shortLogBits N) (tradeoffBits N) (arithmeticBits N) (sampled base N) membersPerBatch
+          path.2.1)
       (Circuit.peakResidentSpace_retain
         (model := ShortDLP.CompiledMAU.Recycling.model) (ctx := outcomes base N)
         (outcomes base N).canonicalFreshKey (LatticeBatchRecoveryOutput.OutputShape N)
@@ -242,7 +250,8 @@ lemma rsaRecyclingFrame_allocateBatch_auxiliary (base : RuntimeCtx .quantum) (N 
   have joined := Circuit.peakAuxiliarySpace_seq
     (ShorStyle.Canonical.Sampler.Retained.allocation
       (model := ShortDLP.CompiledMAU.Recycling.model) base N)
-    ((allocatePacked (shortLogBits N) (tradeoffBits N) (arithmeticBits N) (sampled base N) 16).seq
+    ((allocatePacked (shortLogBits N) (tradeoffBits N) (arithmeticBits N) (sampled base N)
+      membersPerBatch).seq
       (Circuit.retain (model := ShortDLP.CompiledMAU.Recycling.model)
         (outcomes base N) (outcomes base N).canonicalFreshKey
         (LatticeBatchRecoveryOutput.OutputShape N) (outcomes base N).canonicalFreshKey_fresh)) path
@@ -252,14 +261,16 @@ lemma rsaRecyclingFrame_allocateBatch_auxiliary (base : RuntimeCtx .quantum) (N 
       (model := ShortDLP.CompiledMAU.Recycling.model) base N path.1).trans
         (sampled_auxiliary_le base N)
   · have tail := Circuit.peakAuxiliarySpace_seq
-      (allocatePacked (shortLogBits N) (tradeoffBits N) (arithmeticBits N) (sampled base N) 16)
+      (allocatePacked (shortLogBits N) (tradeoffBits N) (arithmeticBits N) (sampled base N)
+        membersPerBatch)
       (Circuit.retain (model := ShortDLP.CompiledMAU.Recycling.model)
         (outcomes base N) (outcomes base N).canonicalFreshKey
         (LatticeBatchRecoveryOutput.OutputShape N) (outcomes base N).canonicalFreshKey_fresh)
       path.2
     have normalized := tail.trans (congrArg₂ SpacePool.max
       (rsaRecyclingFrame_allocatePacked_auxiliary
-        (shortLogBits N) (tradeoffBits N) (arithmeticBits N) (sampled base N) 16 path.2.1)
+        (shortLogBits N) (tradeoffBits N) (arithmeticBits N) (sampled base N) membersPerBatch
+          path.2.1)
       (Circuit.peakAuxiliarySpace_retain
         (model := ShortDLP.CompiledMAU.Recycling.model) (ctx := outcomes base N)
         (outcomes base N).canonicalFreshKey (LatticeBatchRecoveryOutput.OutputShape N)

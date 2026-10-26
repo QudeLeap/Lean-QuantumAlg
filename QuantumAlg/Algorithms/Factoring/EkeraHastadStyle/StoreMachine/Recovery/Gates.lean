@@ -175,9 +175,10 @@ private lemma quadratic_gate_zero (width : Nat) :
     QuadraticCandidateCheck.positiveEventEnvelope, NumberTheory.NatModCheck.eventEnvelope,
     firstAccepted_gate_zero]
 
-private lemma recovery_gate_zero (N : Nat) :
+private lemma recovery_gate_zero (N : Nat) (additionalMembers : Nat := 14) :
     ResourcePool.count (model := model) (.gate coordinate)
-      (LatticeFixedBatchRecoveryMachine.eventEnvelope (model := model) N) = 0 := by
+      (LatticeFixedBatchRecoveryMachine.eventEnvelope (model := model) N additionalMembers) = 0
+        := by
   simp [LatticeFixedBatchRecoveryMachine.eventEnvelope,
     LatticeBatchRecoveryWorkspaceBody.eventEnvelope,
     LatticeSharedQuadraticInitialization.eventEnvelope, setup_gate_zero,

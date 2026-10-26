@@ -130,6 +130,11 @@ lemma model_tradeoffBits_eq {N : Nat} (model : FixedWidthModel N) :
   unfold Canonical.tradeoffBits
   rw [model_shortLogBits_eq model]
 
+/-- RSA-2048's rounded registers satisfy the stronger obstruction-count hypothesis. -/
+lemma model_strongTradeoff {N : Nat} (model : FixedWidthModel N) :
+    Canonical.shortLogBits N + 1 ≤ 2 * Canonical.tradeoffBits N := by
+  rw [model_shortLogBits_eq model, model_tradeoffBits_eq model]
+
 /-- One terminal short-DLP measurement contains 2,051 bits. -/
 lemma model_measurementBits_eq {N : Nat} (model : FixedWidthModel N) :
     Canonical.measurementBits N = 2_051 := by

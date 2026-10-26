@@ -14,7 +14,7 @@ import all QuantumAlg.Algorithms.Factoring.ShorStyle.Sampler.Retained
 import all QuantumAlg.Algorithms.Factoring.ShorStyle.Sampler.Retained.Semantics
 import all QuantumAlg.Primitives.ShortDLP.CompiledMAU.Runtime.Results
 import all QuantumAlg.Primitives.ShortDLP.CompiledMAU.Runtime.Round
-import all QuantumAlg.Primitives.ShortDLP.CompiledMAU.Recycling.Context
+import all QuantumAlg.Primitives.ShortDLP.CompiledMAU.Recycling.Source.Context
 import all QuantumAlg.Core.Execution.Classical.Composition
 import all QuantumAlg.Core.Execution.Reference.Observation
 import all QuantumAlg.Core.Execution.Measurement.Fibers
@@ -33,6 +33,8 @@ namespace QuantumAlg.Factoring.RSA.Recycling.ClassicalFrame
 
 noncomputable section
 
+variable [configuration : Configuration]
+
 open Execution ShortDLP.CompiledMAU
 open EkeraHastadStyle.Canonical
 
@@ -47,10 +49,10 @@ private def pushPacked (m ell width : Nat) : (base : RuntimeCtx .quantum) → (c
         (original.pushRetained base.canonicalFreshKey (.bits (RuntimeRound.resultBits m ell width))
           base.canonicalFreshKey_fresh)
 
-/-- One actual batch frame adjoins its source pair, sixteen result cells and factor cell. -/
+/-- One actual batch frame adjoins its source pair, configured result cells and factor cell. -/
 private def pushBatch (base : RuntimeCtx .quantum) (N : Nat) (original : Store base) :
     Store (batch base N) :=
-  (pushPacked (shortLogBits N) (tradeoffBits N) (arithmeticBits N) (sampled base N) 16
+  (pushPacked (shortLogBits N) (tradeoffBits N) (arithmeticBits N) (sampled base N) membersPerBatch
     (ShorStyle.Canonical.Sampler.Retained.pushStore N original)).pushRetained
       (outcomes base N).canonicalFreshKey (LatticeBatchRecoveryOutput.OutputShape N)
       (outcomes base N).canonicalFreshKey_fresh
@@ -69,6 +71,7 @@ def pushStore (base : RuntimeCtx .quantum) (N count : Nat) (original : Store bas
     (batches N base count).canonicalFreshKey (LatticeBatchRecoveryOutput.OutputShape N)
     (batches N base count).canonicalFreshKey_fresh
 
+omit configuration in
 private lemma allocatePacked_referenceFiberSum (m ell width : Nat)
     (base : RuntimeCtx .quantum) (count : Nat)
     {Reference : Register} {History : Type} [Fintype History]
@@ -121,7 +124,8 @@ private lemma allocateBatch_referenceFiberSum (base : RuntimeCtx .quantum) (N : 
     ShorStyle.Canonical.Sampler.Retained.allocation
       (model := ShortDLP.CompiledMAU.Recycling.model) base N
   let packed : Circuit ShortDLP.CompiledMAU.Recycling.model (sampled base N) (outcomes base N) :=
-    allocatePacked (shortLogBits N) (tradeoffBits N) (arithmeticBits N) (sampled base N) 16
+    allocatePacked (shortLogBits N) (tradeoffBits N) (arithmeticBits N) (sampled base N)
+      membersPerBatch
   let result : Circuit ShortDLP.CompiledMAU.Recycling.model (outcomes base N) (batch base N) :=
     Circuit.retain (model := ShortDLP.CompiledMAU.Recycling.model)
       (outcomes base N) (outcomes base N).canonicalFreshKey
@@ -131,7 +135,7 @@ private lemma allocateBatch_referenceFiberSum (base : RuntimeCtx .quantum) (N : 
       (LatticeBatchRecoveryOutput.OutputShape N) (outcomes base N).canonicalFreshKey_fresh)
   let sourceWeight : Store (sampled base N) → ℂ := fun stored =>
     packedWeight (pushPacked (shortLogBits N) (tradeoffBits N) (arithmeticBits N)
-      (sampled base N) 16 stored)
+      (sampled base N) membersPerBatch stored)
   refine (Circuit.referenceFiberSum_execute_seq (environment := environment) source
     (packed.seq result)
     state weight left right).trans ?_
@@ -145,7 +149,7 @@ private lemma allocateBatch_referenceFiberSum (base : RuntimeCtx .quantum) (N : 
     (packed.execute environment Reference (source.execute environment Reference state)) weight
       left right).trans ?_
   refine (allocatePacked_referenceFiberSum (shortLogBits N) (tradeoffBits N)
-    (arithmeticBits N) (sampled base N) 16
+    (arithmeticBits N) (sampled base N) membersPerBatch
     (source.execute environment Reference state) packedWeight left right).trans ?_
   have executed := ShorStyle.Canonical.Sampler.Retained.samplerRetained_allocation_execute
     (environment := environment)

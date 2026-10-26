@@ -8,9 +8,9 @@ module
 
 public import QuantumAlg.Init
 public import QuantumAlg.Util.Noncommutative
-public import QuantumAlg.Analysis.HamiltonianSimulation
+public import QuantumAlg.Analysis.Trotter.Evolution
 public import QuantumAlg.Util.ExpRemainder
-public import QuantumAlg.Util.Matrix.TraceNorm
+public import QuantumAlg.Util.Matrix.Trace.Norm
 public import Mathlib.Algebra.Module.LinearMap.Basic
 public import Mathlib.Topology.Algebra.Module.FiniteDimension
 

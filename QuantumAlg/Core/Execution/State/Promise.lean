@@ -7,13 +7,15 @@ Authors: QudeLeap Team
 module
 
 public import QuantumAlg.Core.Base.State.Density
+public import QuantumAlg.Core.Execution.State.UnitaryNeighborhood
 import all QuantumAlg.Core.Base.State.Density
+import all QuantumAlg.Core.Execution.State.UnitaryNeighborhood
 
 /-!
 # State promises on probability-bearing density blocks
 
-A promise specifies a pure state, a normalized mixed state, or no state
-information. It is evaluated on an actual subnormalized density block by
+A promise specifies a pure state, a normalized mixed state, a unitary
+neighborhood, or no state information. It is evaluated on an actual subnormalized density block by
 retaining that block's probability weight. Pure targets use their density
 outer products [dW19, qcnotes.tex:5381]; mixed targets have trace one
 [dW19, qcnotes.tex:5394].
@@ -33,6 +35,8 @@ public inductive StatePromise (R : Register) where
   | pure (target : NormalizedVector R)
   /-- The target is a normalized density operator. -/
   | mixed (target : DensityOperator R) (normalized : target.IsNormalized)
+  /-- The observed state comes from a system unitary within an independent norm bound. -/
+  | unitaryNeighborhood (target : UnitaryNeighborhood R)
 
 namespace StatePromise
 
@@ -47,6 +51,7 @@ public def Holds : StatePromise R → DensityOperator R → Prop
       state.matrix = (state.mass : ℝ) • (DensityOperator.ofPure target).matrix
   | .mixed target _, state =>
       state.matrix = (state.mass : ℝ) • target.matrix
+  | .unitaryNeighborhood target, state => target.Holds state
 
 /-- A dirty promise imposes no state equality. -/
 @[simp] lemma holds_dirty (state : DensityOperator R) :
@@ -66,7 +71,11 @@ lemma holds_mixed_iff (target : DensityOperator R) (normalized : target.IsNormal
 /-- An impossible block satisfies every stated promise without normalization or division. -/
 @[simp] lemma holds_zero (promise : StatePromise R) :
     promise.Holds (DensityOperator.zero R) := by
-  cases promise <;> simp [Holds]
+  cases promise with
+  | unitaryNeighborhood target => exact target.holds_zero
+  | dirty => trivial
+  | pure target => simp [Holds]
+  | mixed target normalized => simp [Holds]
 
 /-- Zero probability forces the actual density block to be zero, so every promise holds. -/
 lemma holds_of_mass_eq_zero (promise : StatePromise R) (state : DensityOperator R)

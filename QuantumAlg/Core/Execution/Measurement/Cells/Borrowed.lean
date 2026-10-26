@@ -7,6 +7,7 @@ Authors: QudeLeap Team
 module
 
 import all QuantumAlg.Core.Execution.Measurement.Cells.Inputs
+import all QuantumAlg.Core.Execution.Classical.Retained.Read
 import all QuantumAlg.Core.Execution.Borrowed.Classical
 
 /-!
@@ -22,29 +23,6 @@ namespace QuantumAlg.Execution
 
 noncomputable section
 
-namespace Store
-
-/-- An original structural operand reads the old store beneath a retained head. -/
-lemma retainedTail_read {kind : ProblemKind} {ctx : RuntimeCtx kind}
-    (key : StorageKey) (shape : CShape) (fresh : key ∉ ctx.keys)
-    (store : Store (ctx.addRetained key shape fresh)) {inputShape : CShape}
-    (input : CInputRef ctx inputShape) :
-    (Store.mk store.cells.2).read input =
-      store.read (input.underRetained key shape fresh) := by
-  induction input with
-  | storage => rfl
-  | product first second firstIH secondIH =>
-      exact congrArg₂ CShape.Value.product firstIH secondIH
-  | fixedVector entries entriesIH =>
-      exact congrArg CShape.Value.fixedVector (funext entriesIH)
-  | first source sourceIH => exact congrArg CShape.Value.first sourceIH
-  | second source sourceIH => exact congrArg CShape.Value.second sourceIH
-  | vectorGet source index sourceIH => exact congrArg (fun value => value.get index) sourceIH
-  | bitsGet source index sourceIH => exact congrArg (fun value => value.bitGet index) sourceIH
-  | wordBitGet source index sourceIH =>
-      exact congrArg (fun value => value.wordBitGet index) sourceIH
-
-end Store
 
 namespace MeasurementCells
 

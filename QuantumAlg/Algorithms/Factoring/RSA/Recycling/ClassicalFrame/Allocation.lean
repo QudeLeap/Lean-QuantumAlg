@@ -9,6 +9,7 @@ module
 import all QuantumAlg.Algorithms.Factoring.RSA.Recycling.ClassicalFrame.Layout
 import all QuantumAlg.Core.Execution.Trace.Composition
 import all QuantumAlg.Core.Execution.Time
+import all QuantumAlg.Primitives.ShortDLP.CompiledMAU.Recycling.Source.Context
 
 /-!
 # Actual retention of the complete recycled factoring frame
@@ -22,6 +23,8 @@ fills the preallocated destinations in the original chronological order.
 namespace QuantumAlg.Factoring.RSA.Recycling.ClassicalFrame
 
 noncomputable section
+
+variable [configuration : Configuration]
 
 open Execution ShortDLP.CompiledMAU
 open EkeraHastadStyle.Canonical
@@ -37,13 +40,13 @@ def allocatePacked (m ell width : Nat) : (base : RuntimeCtx .quantum) → (count
         base.canonicalFreshKey_fresh).seq
           (allocatePacked m ell width (RuntimeResults.next m ell width base) count)
 
-/-- Allocate one batch's source pair, sixteen packed observations, and recovery factor. -/
+/-- Allocate one batch's source pair, configured packed observations, and recovery factor. -/
 def allocateBatch (base : RuntimeCtx .quantum) (N : Nat) :
     Circuit ShortDLP.CompiledMAU.Recycling.model base (batch base N) :=
   (ShorStyle.Canonical.Sampler.Retained.allocation
     (model := ShortDLP.CompiledMAU.Recycling.model) base N).seq
       ((allocatePacked (shortLogBits N) (tradeoffBits N) (arithmeticBits N)
-        (sampled base N) 16).seq
+        (sampled base N) membersPerBatch).seq
           (Circuit.retain (model := ShortDLP.CompiledMAU.Recycling.model)
             (outcomes base N) (outcomes base N).canonicalFreshKey
             (LatticeBatchRecoveryOutput.OutputShape N) (outcomes base N).canonicalFreshKey_fresh))
@@ -63,6 +66,7 @@ def allocate (base : RuntimeCtx .quantum) (N count : Nat) :
       (batches N base count) (batches N base count).canonicalFreshKey
       (LatticeBatchRecoveryOutput.OutputShape N) (batches N base count).canonicalFreshKey_fresh)
 
+omit configuration in
 /-- Preallocating packed destinations emits no random, packing, or quantum event. -/
 lemma rsaRecyclingFrame_allocatePacked_trace (m ell width : Nat)
     (base : RuntimeCtx .quantum) (count : Nat)
@@ -81,10 +85,10 @@ lemma rsaRecyclingFrame_allocateBatch_trace (base : RuntimeCtx .quantum) (N : Na
     (allocateBatch base N).eventTrace path = [] := by
   let trace : List (Resource.Event ShortDLP.CompiledMAU.Recycling.model) :=
     (allocatePacked (shortLogBits N) (tradeoffBits N) (arithmeticBits N)
-      (sampled base N) 16).eventTrace path.2.1
+      (sampled base N) membersPerBatch).eventTrace path.2.1
   have empty : trace = [] :=
     rsaRecyclingFrame_allocatePacked_trace (shortLogBits N) (tradeoffBits N)
-      (arithmeticBits N) (sampled base N) 16 path.2.1
+      (arithmeticBits N) (sampled base N) membersPerBatch path.2.1
   change [] ++ (trace ++ []) = []
   exact (List.nil_append (trace ++ [])).trans ((List.append_nil trace).trans empty)
 
@@ -109,6 +113,7 @@ lemma rsaRecyclingFrame_allocate_trace (base : RuntimeCtx .quantum) (N count : N
   change (allocateBatches N base count).eventTrace path.1 ++ [] = []
   rw [rsaRecyclingFrame_allocateBatches_trace, List.append_nil]
 
+omit configuration in
 /-- The actual packed-destination allocation has no event duration under any clock. -/
 lemma rsaRecyclingFrame_allocatePacked_depth (m ell width : Nat)
     (base : RuntimeCtx .quantum) (count : Nat)
@@ -129,10 +134,10 @@ lemma rsaRecyclingFrame_allocateBatch_depth (base : RuntimeCtx .quantum) (N : Na
     (path : (allocateBatch base N).Path) :
     (allocateBatch base N).depth duration path = 0 := by
   change (0 + 0) + ((allocatePacked (shortLogBits N) (tradeoffBits N) (arithmeticBits N)
-    (sampled base N) 16).depth duration path.2.1 + 0) = 0
+    (sampled base N) membersPerBatch).depth duration path.2.1 + 0) = 0
   exact (congrArg (fun work : Nat => (0 + 0) + (work + 0))
     (rsaRecyclingFrame_allocatePacked_depth (shortLogBits N) (tradeoffBits N)
-      (arithmeticBits N) (sampled base N) 16 duration path.2.1)).trans rfl
+      (arithmeticBits N) (sampled base N) membersPerBatch duration path.2.1)).trans rfl
 
 /-- Every preallocated batch has zero event duration, including an empty batch family. -/
 lemma rsaRecyclingFrame_allocateBatches_depth (N : Nat)

@@ -12,7 +12,7 @@ import all QuantumAlg.Algorithms.Factoring.EkeraHastadStyle.StoreMachine.Recover
 /-!
 # Seeded fixed-batch recovery tail
 
-This module composes the widened sampler early-factor seed with all 120
+This module composes the widened sampler early-factor seed with all unordered pairs
 literal unordered-pair recovery invocations.  The final persistent selection
 is proved equal to the pure fixed-batch recovery value over the same sixteen
 retained terminal cells.
@@ -31,21 +31,24 @@ open ClassicalRoutines
 
 noncomputable section
 
+variable {additionalMembers : Nat}
+
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
 -- Observe the mathematical full-path record through the generic composition laws.
 attribute [local irreducible] Circuit.sequenceStoreRecord
 
 /-- Caller-owned seed, indexed pair fold, and their shared factor selector. -/
-structure Refs {kind : ProblemKind} (ctx : RuntimeCtx kind) (N : Nat) where
+structure Refs {kind : ProblemKind} (ctx : RuntimeCtx kind) (N : Nat)
+    (additionalMembers : Nat := 14) where
   /-- Input reference for the parameter value. -/
   parameter : CInputRef ctx (ParameterShape N)
   /-- The terminals component of this typed record. -/
-  terminals : LatticePairRecoveryBatch.Terminals ctx N
+  terminals : LatticePairRecoveryBatch.Terminals ctx N additionalMembers
   /-- Nested references for the seed stage. -/
   seed : LatticeEarlyFactorSeed.Refs ctx N
   /-- Nested references for the fold stage. -/
-  fold : LatticePairRecoveryFold.Refs ctx N
+  fold : LatticePairRecoveryFold.Refs ctx N additionalMembers
   sharedSelection : seed.selection = fold.factorSelection
   aligned : LatticePairRecoveryBatch.Aligned fold terminals
 
@@ -74,14 +77,14 @@ structure SeedInitialFrameAvoids {kind : ProblemKind} {ctx : RuntimeCtx kind}
 
 /-- Every retained terminal bit survives the early-factor seed. -/
 structure SeedTerminalFrameAvoids {kind : ProblemKind} {ctx : RuntimeCtx kind}
-    {N : Nat} (refs : Refs ctx N) : Prop where
+    {N : Nat} (refs : Refs ctx N additionalMembers) : Prop where
   bit : ∀ terminalIndex bitIndex,
     LatticeEarlyFactorSeed.CallerFrameAvoids refs.seed
       (.bitsGet (refs.terminals terminalIndex) bitIndex)
 
 /-- Local certificates and all seed-to-fold frame obligations. -/
 structure Separation {kind : ProblemKind} {ctx : RuntimeCtx kind} {N : Nat}
-    (refs : Refs ctx N) : Prop where
+    (refs : Refs ctx N additionalMembers) : Prop where
   seed : LatticeEarlyFactorSeed.Separation refs.parameter refs.seed
   fold : LatticePairRecoveryFold.Separation refs.fold
   seedInitialFrames : ∀ index,
@@ -91,7 +94,7 @@ structure Separation {kind : ProblemKind} {ctx : RuntimeCtx kind} {N : Nat}
 /-- Entry facts for one sampler value and its clear shared factor selector. -/
 structure InitialConditions {kind : ProblemKind} {ctx : RuntimeCtx kind}
     {N : Nat} (input : Input N) (sample : Fin (2 ^ residueSamplingBits N))
-    (before : Store ctx) (refs : Refs ctx N) : Prop where
+    (before : Store ctx) (refs : Refs ctx N additionalMembers) : Prop where
   parameterValue : before.read refs.parameter = parameterValue input sample
   fold : LatticePairRecoveryFold.InitialConditions input
     (preparedResidue sample).unit before refs.fold
@@ -101,7 +104,7 @@ structure InitialConditions {kind : ProblemKind} {ctx : RuntimeCtx kind}
 
 /-- Avoidance of both the seed and every pair invocation. -/
 structure CallerFrameAvoids {kind : ProblemKind} {ctx : RuntimeCtx kind}
-    {N : Nat} (refs : Refs ctx N) {shape : CShape}
+    {N : Nat} (refs : Refs ctx N additionalMembers) {shape : CShape}
     (other : CInputRef ctx shape) : Prop where
   seed : LatticeEarlyFactorSeed.CallerFrameAvoids refs.seed other
   fold : LatticePairRecoveryFold.CallerFrameAvoids refs.fold other
@@ -111,12 +114,12 @@ variable {model : ExecutionModel}
   {ctx : RuntimeCtx model.kind} {N : Nat}
 
 /-- Seed the early factor and execute every unordered terminal pair. -/
-def into (input : Input N) (refs : Refs ctx N) : Circuit model ctx ctx :=
+def into (input : Input N) (refs : Refs ctx N additionalMembers) : Circuit model ctx ctx :=
   .seq (LatticeEarlyFactorSeed.into refs.parameter refs.seed)
     (LatticePairRecoveryFold.into input refs.fold)
 
 /-- The complete actual store flows from seeding into the canonical pair sequence. -/
-noncomputable def step (input : Input N) (refs : Refs ctx N) (store : Store ctx) :
+noncomputable def step (input : Input N) (refs : Refs ctx N additionalMembers) (store : Store ctx) :
     Store ctx × (into input refs).Path :=
   Circuit.sequenceStoreRecord (LatticeEarlyFactorSeed.into refs.parameter refs.seed)
     (LatticePairRecoveryFold.into input refs.fold)
@@ -124,13 +127,13 @@ noncomputable def step (input : Input N) (refs : Refs ctx N) (store : Store ctx)
     (LatticePairRecoveryFold.step input refs.fold) store
 
 /-- The complete pair sequence receives the actual store produced by the seed. -/
-lemma step_store (input : Input N) (refs : Refs ctx N) (store : Store ctx) :
+lemma step_store (input : Input N) (refs : Refs ctx N additionalMembers) (store : Store ctx) :
     (step input refs store).1 = (LatticePairRecoveryFold.step input refs.fold
       (LatticeEarlyFactorSeed.step refs.parameter refs.seed store).1).1 :=
   Circuit.sequenceStoreRecord_store _ _ _ _ store
 
 /-- The seed-and-fold record executes on arbitrary histories and external references. -/
-lemma into_execute (input : Input N) (refs : Refs ctx N) (Reference : Register)
+lemma into_execute (input : Input N) (refs : Refs ctx N additionalMembers) (Reference : Register)
     {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
     (into input refs).execute environment Reference state = state.mapClassical (fun entry =>
@@ -141,7 +144,7 @@ lemma into_execute (input : Input N) (refs : Refs ctx N) (Reference : Register)
     (LatticePairRecoveryFold.into_execute input refs.fold) Reference state
 
 /-- All structural caller reads outside seed and fold survive on arbitrary numerical stores. -/
-lemma into_callerFrame (input : Input N) (refs : Refs ctx N) (store : Store ctx)
+lemma into_callerFrame (input : Input N) (refs : Refs ctx N additionalMembers) (store : Store ctx)
     {shape : CShape} (other : CInputRef ctx shape) (avoids : CallerFrameAvoids refs other) :
     (step input refs store).1.read other = store.read other := by
   rw [step_store]
@@ -149,7 +152,7 @@ lemma into_callerFrame (input : Input N) (refs : Refs ctx N) (store : Store ctx)
     (LatticeEarlyFactorSeed.into_callerFrame refs.parameter refs.seed store other avoids.seed)
 
 private lemma pairInitial_afterSeed (input : Input N)
-    (sample : Fin (2 ^ residueSamplingBits N)) (refs : Refs ctx N)
+    (sample : Fin (2 ^ residueSamplingBits N)) (refs : Refs ctx N additionalMembers)
     (store : Store ctx) (pair : LatticePairFactorRecovery.Refs ctx N)
     (initial : LatticePairReusableRecovery.InitialConditions input
       (preparedResidue sample).unit store pair)
@@ -184,7 +187,7 @@ private lemma pairInitial_afterSeed (input : Input N)
   · exact (congrArg CShape.Value.toNat modulus).trans initial.quadratic.modulusValue
 
 private lemma foldInitial_afterSeed (input : Input N)
-    (sample : Fin (2 ^ residueSamplingBits N)) (refs : Refs ctx N)
+    (sample : Fin (2 ^ residueSamplingBits N)) (refs : Refs ctx N additionalMembers)
     (separation : Separation refs) (store : Store ctx)
     (initial : LatticePairRecoveryFold.InitialConditions input
       (preparedResidue sample).unit store refs.fold) :
@@ -194,8 +197,9 @@ private lemma foldInitial_afterSeed (input : Input N)
   exact pairInitial_afterSeed input sample refs store (refs.fold.pair index)
     (initial index) (separation.seedInitialFrames index)
 
-private lemma sourceBits_afterSeed (refs : Refs ctx N) (separation : Separation refs)
-    (store : Store ctx) (terminalIndex : Fin 16) :
+private lemma sourceBits_afterSeed (refs : Refs ctx N additionalMembers) (separation :
+  Separation refs)
+    (store : Store ctx) (terminalIndex : Fin (additionalMembers + 2)) :
     BatchMachine.sourceBits N (LatticeEarlyFactorSeed.step refs.parameter refs.seed store).1
         (refs.terminals terminalIndex) =
       BatchMachine.sourceBits N store (refs.terminals terminalIndex) := by
@@ -206,7 +210,7 @@ private lemma sourceBits_afterSeed (refs : Refs ctx N) (separation : Separation 
       (separation.seedTerminalFrames.bit terminalIndex bitIndex))
 
 private lemma preparedSamples_afterSeed (sample : Fin (2 ^ residueSamplingBits N))
-    (refs : Refs ctx N) (separation : Separation refs) (store : Store ctx) :
+    (refs : Refs ctx N additionalMembers) (separation : Separation refs) (store : Store ctx) :
     LatticePairRecoveryBatch.preparedSamples (preparedResidue sample) refs.terminals
         (LatticeEarlyFactorSeed.step refs.parameter refs.seed store).1 =
       LatticePairRecoveryBatch.preparedSamples (preparedResidue sample) refs.terminals store := by
@@ -219,7 +223,7 @@ private lemma preparedSamples_afterSeed (sample : Fin (2 ^ residueSamplingBits N
     (sourceBits_afterSeed refs separation store terminalIndex)
 
 /-- The exact fixed-batch value over the original terminal cells and complete caller frame. -/
-structure Relation (sample : Fin (2 ^ residueSamplingBits N)) (refs : Refs ctx N)
+structure Relation (sample : Fin (2 ^ residueSamplingBits N)) (refs : Refs ctx N additionalMembers)
     (before after : Store ctx) : Prop where
   selected : QuadraticCandidateSelect.selectedOption refs.fold.factorSelection after =
     BatchRecovery.batchValue N (shortLogBits N) (tradeoffBits N)
@@ -229,7 +233,7 @@ structure Relation (sample : Fin (2 ^ residueSamplingBits N)) (refs : Refs ctx N
 
 /-- The actual early-factor seed and full pair sequence realize the original pure batch value. -/
 lemma into_correct (input : Input N) (sample : Fin (2 ^ residueSamplingBits N))
-    (refs : Refs ctx N) (separation : Separation refs) (store : Store ctx)
+    (refs : Refs ctx N additionalMembers) (separation : Separation refs) (store : Store ctx)
     (initial : InitialConditions input sample store refs) :
     Relation sample refs store (step input refs store).1 := by
   have seedHolds := LatticeEarlyFactorSeed.into_correct input sample refs.parameter refs.seed
@@ -257,11 +261,12 @@ lemma into_correct (input : Input N) (sample : Fin (2 ^ residueSamplingBits N))
   rw [preparedSamples_afterSeed sample refs separation store]
 
 /-- The independent native allowance pays for the seed and every complete reusable pair. -/
-def eventEnvelope (N : Nat) : ResourcePool model :=
-  LatticeEarlyFactorSeed.eventEnvelope N + LatticePairRecoveryFold.eventEnvelope N
+def eventEnvelope (N : Nat) (additionalMembers : Nat := 14) : ResourcePool model :=
+  LatticeEarlyFactorSeed.eventEnvelope N + LatticePairRecoveryFold.eventEnvelope N additionalMembers
 
 /-- The independent sequential depth includes seeding and the complete pair fold. -/
-def depthBound (N : Nat) : Nat := 5 + LatticePairRecoveryFold.depthBound N
+def depthBound (N : Nat) (additionalMembers : Nat := 14) : Nat := 5 +
+  LatticePairRecoveryFold.depthBound N additionalMembers
 
 omit [BitWord.Selected model] in
 private lemma sequence_pool_le (first second : Circuit model ctx ctx)
@@ -275,8 +280,9 @@ private lemma sequence_pool_le (first second : Circuit model ctx ctx)
   exact add_le_add (firstLe path.1) (secondLe path.2)
 
 /-- Every actual native coordinate is bounded by the independent seed-and-fold allowance. -/
-lemma into_pool_le (input : Input N) (refs : Refs ctx N) (path : (into input refs).Path) :
-    (into input refs).resourcePool path ≤ eventEnvelope N := by
+lemma into_pool_le (input : Input N) (refs : Refs ctx N additionalMembers) (path : (into input
+  refs).Path) :
+    (into input refs).resourcePool path ≤ eventEnvelope N additionalMembers := by
   unfold into at path ⊢
   unfold eventEnvelope
   with_reducible
@@ -285,13 +291,15 @@ lemma into_pool_le (input : Input N) (refs : Refs ctx N) (path : (into input ref
       (LatticePairRecoveryFold.into_pool_le input refs.fold) path
 
 /-- The actual complete sequential path meets the independent dependency-depth bound. -/
-lemma into_depth_le (input : Input N) (refs : Refs ctx N) (path : (into input refs).Path) :
-    (into input refs).depth (fun _ => 1) path ≤ depthBound N :=
+lemma into_depth_le (input : Input N) (refs : Refs ctx N additionalMembers) (path : (into input
+  refs).Path) :
+    (into input refs).depth (fun _ => 1) path ≤ depthBound N additionalMembers :=
   Nat.add_le_add (LatticeEarlyFactorSeed.into_depth_le refs.parameter refs.seed path.1)
     (LatticePairRecoveryFold.into_depth_le input refs.fold path.2)
 
 /-- Seeding and pair reuse retain the context plus the actual native-power resident peak. -/
-lemma into_resident_le (input : Input N) (refs : Refs ctx N) (path : (into input refs).Path) :
+lemma into_resident_le (input : Input N) (refs : Refs ctx N additionalMembers) (path : (into
+  input refs).Path) :
     (into input refs).peakResidentSpace path ≤
       ctx.residentSpace + Modular.NativePower.powerSpace model.kind (modulusBits N) := by
   refine (Circuit.peakResidentSpace_seq (LatticeEarlyFactorSeed.into refs.parameter refs.seed)
@@ -302,7 +310,8 @@ lemma into_resident_le (input : Input N) (refs : Refs ctx N) (path : (into input
     (LatticePairRecoveryFold.into_resident_le input refs.fold path.2)
 
 /-- Auxiliary accounting follows the same actual scopes and retained context roles. -/
-lemma into_auxiliary_le (input : Input N) (refs : Refs ctx N) (path : (into input refs).Path) :
+lemma into_auxiliary_le (input : Input N) (refs : Refs ctx N additionalMembers) (path : (into
+  input refs).Path) :
     (into input refs).peakAuxiliarySpace path ≤
       ctx.auxiliarySpace + Modular.NativePower.powerSpace model.kind (modulusBits N) := by
   refine (Circuit.peakAuxiliarySpace_seq (LatticeEarlyFactorSeed.into refs.parameter refs.seed)
@@ -313,7 +322,8 @@ lemma into_auxiliary_le (input : Input N) (refs : Refs ctx N) (path : (into inpu
     (LatticePairRecoveryFold.into_auxiliary_le input refs.fold path.2)
 
 /-- Seed and full recovery jointly restore all borrowed systems with arbitrary references. -/
-lemma into_borrowedRestored (input : Input N) (refs : Refs ctx N) (Reference : Register)
+lemma into_borrowedRestored (input : Input N) (refs : Refs ctx N additionalMembers) (Reference :
+  Register)
     {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
     (into input refs).BorrowedRestored Reference state

@@ -64,7 +64,7 @@ lemma sampled_ge {N : Nat} (model : GoodKeyModel N) :
       (sampledBatchOutputPMF model.input).toOuterMeasure (accepts model) := by
   have conditional := PMF.bind_eventProbability_ge_goodMass_mul
     (PMF.uniformOfFintype (Fin (2 ^ residueSamplingBits N)))
-    (fixedBatchOutputPMF model.input)
+    (fun sample => fixedBatchOutputPMF model.input sample)
     (fun sample => RSA.FixedWidthSampling.SamplerExceptional model.pair
       (model.bitWidth / 64) (modulusBits N) residueProposalCount sample)
     (fun output => output ∈ accepts model)

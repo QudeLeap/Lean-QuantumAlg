@@ -6,6 +6,8 @@ Authors: QudeLeap Team
 
 module
 
+import all QuantumAlg.Core.Execution.Context.OwnedLayoutView.Laws
+
 import all QuantumAlg.Core.Execution.State.Coordinates
 import all QuantumAlg.Core.Execution.Reference.Unitary
 import all QuantumAlg.Core.Execution.Preparation.Laws
@@ -312,6 +314,13 @@ lemma execute_referenceReindex {model : ExecutionModel} {pre post : RuntimeCtx m
       exact embedPreserving_reference placement (fun Reference {_} _ original =>
         interpret body environment Reference original)
         (fun {_ _} basis {_} _ original => bodyEquation environment basis original) basis state
+  | @ownedLayoutView gates oracles operations services original viewed allocation
+      view body bodyEquation =>
+      change view.join (body.execute environment Other (view.split
+        (state.reindex (S := original.register.prod Other)
+          ((Equiv.refl original.register.Index).prodCongr basis)))) = _
+      rw [view.split_reference, bodyEquation, view.join_reference]
+      rfl
   | parallelClassical join separate first second firstEquation secondEquation =>
       exact parallelPreserving_reference join separate
         (fun Reference {_} _ original => interpret first

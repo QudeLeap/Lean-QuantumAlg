@@ -40,20 +40,6 @@ def idealFourierEventKernel (problem : KnownOrderProblem E.GroupPoint)
           (prodEquiv right)
     else 0
 
-/-- Left translation by the same supplied seed preserves exactly the original oracle fibers. -/
-lemma idealGroupLabel_eq_iff (problem : KnownOrderProblem E.GroupPoint) (seed : AffinePoint E)
-    (left right : (idealBranchRegister problem).Index) :
-    idealGroupLabel problem seed left = idealGroupLabel problem seed right ↔
-      problem.toSourceScope.oracleMultiplier left.1.val left.2.val =
-        problem.toSourceScope.oracleMultiplier right.1.val right.2.val := by
-  constructor
-  · intro same
-    have outputSame := congrArg (fun label => label.val) same
-    exact mul_left_cancel outputSame
-  · intro same
-    apply Subtype.ext
-    exact congrArg (fun value => seed.toGroupPoint * value) same
-
 private lemma idealBranchEffect_matrix_sum (problem : KnownOrderProblem E.GroupPoint)
     (seed : AffinePoint E) (event : (Fin (2 * orderWidth problem) → Bool) → Bool)
     (Reference : Register) (left right : ((idealBranchRegister problem).prod Reference).Index) :

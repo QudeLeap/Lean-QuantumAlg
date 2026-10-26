@@ -18,7 +18,6 @@ on:
 permissions:
   contents: write
   actions: read
-  pages: read
 
 concurrency:
   group: public-release-publication
@@ -48,7 +47,7 @@ jobs:
         with:
           ref: ${{ github.sha }}
           persist-credentials: false
-      - name: Validate successful CI, draft and website handoff
+      - name: Validate successful CI, annotated notes and draft
         id: release
         run: >-
           python3 .github/public-release.py prepare-finalize
@@ -82,30 +81,8 @@ jobs:
         run: >-
           python3 .github/full-lint.py --root release-source
           --receipt "$RUNNER_TEMP/prepared-release/lint.json"
-      - name: Create a fresh Pages publication token
+      - name: Publish the verified release
         if: steps.release.outputs.ready == 'true'
-        id: pages-token
-        uses: actions/create-github-app-token@v3
-        with:
-          client-id: ${{ vars.LEAN_AUTOMATION_APP_CLIENT_ID }}
-          private-key: ${{ secrets.LEAN_AUTOMATION_APP_PRIVATE_KEY }}
-          owner: QudeLeap
-          repositories: Lean-QuantumAlg
-          permission-contents: write
-          permission-actions: read
-      - name: Synchronize the verified website
-        if: steps.release.outputs.ready == 'true'
-        id: pages
-        env:
-          GH_TOKEN: ${{ steps.pages-token.outputs.token }}
-        run: >-
-          python3 .github/public-release.py sync-site
-          --prepared "$RUNNER_TEMP/prepared-release"
-      - name: Verify deployment and publish the release
-        if: steps.release.outputs.ready == 'true'
-        timeout-minutes: 40
-        env:
-          PAGES_SHA: ${{ steps.pages.outputs.pages_sha }}
         run: >-
           python3 .github/public-release.py finish
-          --prepared "$RUNNER_TEMP/prepared-release" --pages-sha "$PAGES_SHA"
+          --prepared "$RUNNER_TEMP/prepared-release"

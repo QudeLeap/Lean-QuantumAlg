@@ -11,6 +11,9 @@ public import QuantumAlg.Components.Kets
 public import QuantumAlg.Components.Encoded.Circuit
 public import QuantumAlg.Components.QubitPrimitive
 public import QuantumAlg.Components.Gates
+public import QuantumAlg.Components.Gates.SquareRootX
+public import QuantumAlg.Components.Gates.GlobalPhase
+public import QuantumAlg.Components.Pauli
 public import QuantumAlg.Components.GateModel
 public import QuantumAlg.Components.Encoded.BitGates
 public import QuantumAlg.Components.Oracle

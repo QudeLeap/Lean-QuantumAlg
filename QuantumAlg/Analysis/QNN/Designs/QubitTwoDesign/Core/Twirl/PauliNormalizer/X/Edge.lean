@@ -23,7 +23,32 @@ set_option maxHeartbeats 8000000 in
 lemma edge (pair : Fin 6) (negativeLeft negativeRight : Bool) :
     qubitClifford (.edge pair negativeLeft negativeRight) * pauliX *
         (qubitClifford (.edge pair negativeLeft negativeRight))ᴴ ∈ signedRawPauliSet := by
-  fin_cases pair <;> cases negativeLeft <;> cases negativeRight <;> pauliEdgeMemFinish
+  fin_cases pair <;> cases negativeLeft <;> cases negativeRight <;>
+    simp only [signedRawPauliSet, Set.mem_ofPred_eq]
+  · right; right; right; left; pauliEdgeConjFinish
+  · right; right; left; pauliEdgeConjFinish
+  · right; right; left; pauliEdgeConjFinish
+  · right; right; right; left; pauliEdgeConjFinish
+  · right; right; right; right; left; pauliEdgeConjFinish
+  · right; right; right; right; right; pauliEdgeConjFinish
+  · right; right; right; right; right; pauliEdgeConjFinish
+  · right; right; right; right; left; pauliEdgeConjFinish
+  · left; pauliEdgeConjFinish
+  · left; pauliEdgeConjFinish
+  · left; pauliEdgeConjFinish
+  · left; pauliEdgeConjFinish
+  · right; left; pauliEdgeConjFinish
+  · right; left; pauliEdgeConjFinish
+  · right; left; pauliEdgeConjFinish
+  · right; left; pauliEdgeConjFinish
+  · right; right; right; right; left; pauliEdgeConjFinish
+  · right; right; right; right; right; pauliEdgeConjFinish
+  · right; right; right; right; right; pauliEdgeConjFinish
+  · right; right; right; right; left; pauliEdgeConjFinish
+  · right; right; left; pauliEdgeConjFinish
+  · right; right; right; left; pauliEdgeConjFinish
+  · right; right; right; left; pauliEdgeConjFinish
+  · right; right; left; pauliEdgeConjFinish
 
 end QuantumAlg.QubitTwoDesign.PauliNormalizer.X
 

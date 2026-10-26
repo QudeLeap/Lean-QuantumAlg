@@ -96,6 +96,20 @@ lemma sixteenSampleBatchFloor_eq :
 lemma sixteenSampleBatchFloor_pos : 0 < sixteenSampleBatchFloor := by
   norm_num [sixteenSampleBatchFloor, atLeastTwoOfSixteenAtOneEighth]
 
+/-- Exact probability of at least two marks in twenty independent trials. -/
+def atLeastTwoOfTwentyAtOneEighth : ℚ :=
+  1 - (7 / 8) ^ 20 - 20 * (1 / 8) * (7 / 8) ^ 19
+
+/-- Twenty-member floor using the exact 190-pair union cost at `1/4096`. -/
+def twentySampleBatchFloor : ℚ :=
+  atLeastTwoOfTwentyAtOneEighth - 190 / 4096
+
+lemma twentySampleBatchFloor_pos : 0 < twentySampleBatchFloor := by
+  norm_num [twentySampleBatchFloor, atLeastTwoOfTwentyAtOneEighth]
+
+lemma twentySampleBatchFloor_le_one : twentySampleBatchFloor ≤ 1 := by
+  norm_num [twentySampleBatchFloor, atLeastTwoOfTwentyAtOneEighth]
+
 end BinomialTail
 end QuantumAlg
 

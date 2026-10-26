@@ -30,31 +30,35 @@ open ClassicalRoutines
 
 noncomputable section
 
+variable {additionalMembers : Nat}
+
 /-- All physical references used by one deepest-scope recovery body. -/
-structure Refs {kind : ProblemKind} (root topCtx inner : RuntimeCtx kind) (N : Nat) where
+structure Refs {kind : ProblemKind} (root topCtx inner : RuntimeCtx kind) (N : Nat)
+    (additionalMembers : Nat := 14) where
   topTransport : ClassicalWorkspace.Transport root topCtx
   pairTransport : ClassicalWorkspace.Transport topCtx inner
   top : LatticeBatchRecoveryWorkspaceLayout.TopCells topCtx N
   cells : LatticePairFactorWorkspaceSeparation.Cells inner N
-  terminals : LatticePairRecoveryBatch.Terminals root N
+  terminals : LatticePairRecoveryBatch.Terminals root N additionalMembers
   parameter : CInputRef root (ParameterShape N)
   result : CWriteRef inner (LatticeBatchRecoveryOutput.OutputShape N)
 
 variable {kind : ProblemKind} {root topCtx inner : RuntimeCtx kind} {N : Nat}
 
 /-- The certificates produced by the real top and seven-package allocation. -/
-structure Separation (refs : Refs root topCtx inner N) : Prop where
+structure Separation (refs : Refs root topCtx inner N additionalMembers) : Prop where
   topDistinct : refs.top.Distinct
   topSeparated : refs.top.TransportSeparated refs.topTransport
   cells : LatticePairFactorWorkspaceSeparation.Certificates refs.pairTransport refs.cells
 
 /-- Shared modular and quadratic constants use their actual physical destinations. -/
-def initializationRefs (refs : Refs root topCtx inner N) :=
+def initializationRefs (refs : Refs root topCtx inner N additionalMembers) :=
   LatticeBatchRecoveryWorkspaceViews.initializationRefs refs.topTransport refs.pairTransport
     refs.cells refs.parameter
 
 /-- The endpoint writes the caller result before any surrounding lexical pop. -/
-def endpointRefs (refs : Refs root topCtx inner N) : LatticeBatchRecoveryEndpoint.Refs inner N where
+def endpointRefs (refs : Refs root topCtx inner N additionalMembers) :
+  LatticeBatchRecoveryEndpoint.Refs inner N additionalMembers where
   tail := LatticeBatchRecoveryWorkspaceViews.tailRefs refs.topTransport refs.pairTransport
     refs.top refs.cells refs.terminals refs.parameter
   output := LatticeBatchRecoveryWorkspaceLayout.outputRefs
@@ -63,7 +67,8 @@ def endpointRefs (refs : Refs root topCtx inner N) : LatticeBatchRecoveryEndpoin
     LatticeBatchRecoveryWorkspaceViews.factorSelection_topAt refs.pairTransport refs.top
 
 /-- Actual physical certificates discharge both the seeded fold and output separation. -/
-lemma endpointSeparation (refs : Refs root topCtx inner N) (separation : Separation refs) :
+lemma endpointSeparation (refs : Refs root topCtx inner N additionalMembers) (separation :
+  Separation refs) :
     LatticeBatchRecoveryEndpoint.Separation (endpointRefs refs) where
   tail := LatticeBatchRecoveryWorkspaceViews.tailSeparation refs.topTransport refs.pairTransport
     refs.top separation.topDistinct separation.topSeparated refs.cells separation.cells
@@ -75,7 +80,7 @@ lemma endpointSeparation (refs : Refs root topCtx inner N) (separation : Separat
 
 /-- Entry values that the caller parameter and actual top allocation establish. -/
 structure InitialConditions (input : Input N) (sample : Fin (2 ^ residueSamplingBits N))
-    (refs : Refs root topCtx inner N) (before : Store inner) : Prop where
+    (refs : Refs root topCtx inner N additionalMembers) (before : Store inner) : Prop where
   initialization :
     LatticeSharedQuadraticInitialization.InitialConditions input before (initializationRefs refs)
   parameterValue : before.read
@@ -86,14 +91,15 @@ structure InitialConditions (input : Input N) (sample : Fin (2 ^ residueSampling
       ).toBool = false
 
 /-- Complete avoidance of the actual shared prefix and endpoint writes. -/
-structure CallerFrameAvoids (refs : Refs root topCtx inner N) {shape : CShape}
+structure CallerFrameAvoids (refs : Refs root topCtx inner N additionalMembers) {shape : CShape}
     (other : CInputRef inner shape) : Prop where
   initialization :
     LatticeSharedQuadraticInitialization.CallerFrameAvoids (initializationRefs refs) other
   endpoint : LatticeBatchRecoveryEndpoint.CallerFrameAvoids (endpointRefs refs) other
 
 /-- The exact original batch value and every disjoint caller value share one actual final store. -/
-structure Relation (sample : Fin (2 ^ residueSamplingBits N)) (refs : Refs root topCtx inner N)
+structure Relation (sample : Fin (2 ^ residueSamplingBits N)) (refs : Refs root topCtx inner N
+  additionalMembers)
     (before after : Store inner) : Prop where
   output : after.read (FirstAccepted.cellRead refs.result) =
     LatticeBatchRecoveryEndpoint.batchOutputValue sample (endpointRefs refs) before

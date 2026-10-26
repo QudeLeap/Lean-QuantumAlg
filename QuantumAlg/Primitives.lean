@@ -12,6 +12,9 @@ public import QuantumAlg.Primitives.BellPair
 public import QuantumAlg.Primitives.Communication
 public import QuantumAlg.Primitives.EllipticCurve
 public import QuantumAlg.Primitives.GHZ
+public import QuantumAlg.Primitives.FTQC.Toffoli7T
+public import QuantumAlg.Primitives.FTQC.ControlledPhases
+public import QuantumAlg.Primitives.FTQC.ToffoliTDepth3
 public import QuantumAlg.Primitives.HadamardTest
 public import QuantumAlg.Primitives.MAU
 public import QuantumAlg.Primitives.SwapTest
@@ -23,6 +26,7 @@ public import QuantumAlg.Primitives.AmplitudeAmplification
 public import QuantumAlg.Primitives.QSP
 public import QuantumAlg.Primitives.QKernel
 public import QuantumAlg.Primitives.QML
+public import QuantumAlg.Primitives.Trotter
 public import QuantumAlg.Primitives.TerminalMeasureProbability
 public import QuantumAlg.Primitives.ZReset
 

@@ -11,6 +11,7 @@ import all QuantumAlg.Algorithms.EllipticCurve.DLP.Measured.Recovery.Stage.Execu
 import all QuantumAlg.Algorithms.EllipticCurve.DLP.Measured.Recovery.Point.Program
 import all QuantumAlg.Algorithms.EllipticCurve.DLP.Measured.Recovery.Stage.History.Feedback
 import all QuantumAlg.Core.Execution.Store.MarginalSum
+import all QuantumAlg.Util.Matrix.SupportedBlock
 
 /-!
 # Ordered original bank words and actual complete-Store recursion
@@ -615,33 +616,6 @@ lemma freshBlock_stage {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prim
   exact stageMatrix_fresh_columns E r points index Reference column.1 row.1
     division stored outcome row.2 column.2
 
-/-- Restrict a product to the zero-control block using the actual right-hand support. -/
-private lemma zeroControlSubmatrix_mul {Source Block : Type}
-    [Fintype Source] [Fintype Block] (basis : Source ≃ Fin 2 × Block)
-    (left right : Matrix Source Source ℂ)
-    (zeroRows : ∀ (control : Fin 2) (row column : Block), control ≠ 0 →
-      right (basis.symm (control, row)) (basis.symm (0, column)) = 0) :
-    (left * right).submatrix (fun row => basis.symm (0, row))
-        (fun column => basis.symm (0, column)) =
-      left.submatrix (fun row => basis.symm (0, row)) (fun column => basis.symm (0, column)) *
-        right.submatrix (fun row => basis.symm (0, row))
-          (fun column => basis.symm (0, column)) := by
-  ext row column
-  change (∑ middle : Source,
-    left (basis.symm (0, row)) middle * right middle (basis.symm (0, column))) =
-      ∑ middle : Block,
-        left (basis.symm (0, row)) (basis.symm (0, middle)) *
-          right (basis.symm (0, middle)) (basis.symm (0, column))
-  rw [← basis.symm.sum_comp, Fintype.sum_prod_type, Fin.sum_univ_two]
-  have nonzeroControl : (∑ middle : Block,
-      left (basis.symm (0, row)) (basis.symm (1, middle)) *
-        right (basis.symm (1, middle)) (basis.symm (0, column))) = 0 := by
-    apply Finset.sum_eq_zero
-    intro middle _
-    rw [zeroRows 1 middle column (by decide), mul_zero]
-  rw [nonzeroControl, add_zero]
-
-
 lemma freshBlock_tail_stage {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
     {m : Nat} (r : Nat) (points : Fin (2 * m) → AffinePoint E) (index : Fin (2 * m))
     (Reference : Register) (stored : Store (Interface p.size m))
@@ -673,7 +647,7 @@ lemma freshBlock_tail_stage {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p
     rw [jointRows control row]
     exact stageMatrix_zero_control E r points index Reference stored outcome division
       control (bitBasis row.1) row.2 (joint.symm (0, column)) nonzero
-  have product := zeroControlSubmatrix_mul
+  have product := MatrixSupport.zeroControl_submatrix_mul
     (Source := ((Interface p.size m).register.prod Reference).Index)
     (Block := Bool × Bank p.size m Reference) joint continuation operator zeroRows
   simpa (config := { zetaDelta := false }) only [freshBlock, jointRows, operator] using product

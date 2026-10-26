@@ -34,7 +34,8 @@ lemma input_mem_visitedContexts (code : Circuit model pre post allowAllocation) 
   | branch input body bodyIH =>
       exact bodyIH path.1 path.2
   | iterate => exact List.mem_cons_self
-  | workspace | embed | parallelClassical | parallelQuantum => exact List.mem_cons_self
+  | workspace | embed | ownedLayoutView | parallelClassical | parallelQuantum =>
+      exact List.mem_cons_self
 
 /-- Every actual path visits its complete final live context. -/
 lemma output_mem_visitedContexts (code : Circuit model pre post allowAllocation) (path :
@@ -49,7 +50,8 @@ lemma output_mem_visitedContexts (code : Circuit model pre post allowAllocation)
   | branch input body bodyIH =>
       exact bodyIH path.1 path.2
   | iterate => exact List.mem_cons_self
-  | workspace | embed | parallelClassical | parallelQuantum => exact List.mem_cons_self
+  | workspace | embed | ownedLayoutView | parallelClassical | parallelQuantum =>
+      exact List.mem_cons_self
 
 /-- The real supplied input storage is bounded by the same actual resident peak. -/
 lemma input_residentSpace_le_peak (code : Circuit model pre post allowAllocation) (path :

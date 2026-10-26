@@ -9,6 +9,7 @@ module
 import all
   QuantumAlg.Algorithms.EllipticCurve.DLP.Measured.Recovery.Observation.Converted.BankGoodColumns
 import all QuantumAlg.Algorithms.EllipticCurve.DLP.Measured.Recovery.Reference.OriginalGroupEndpoint
+import all QuantumAlg.Util.EllipticCurve.Representation
 
 /-!
 # Prepared actual bank labels retain exactly the original group kernel
@@ -33,17 +34,6 @@ open scoped BigOperators
 local instance {Label : Type} : DecidableEq Label := Classical.decEq Label
 
 variable {p : Nat} {E : PrimeFieldShortWeierstrass p} [Fact p.Prime]
-
-omit [Fact p.Prime] in
-/-- Equality in the original total group carrier retains both finite affine coordinates. -/
-lemma affinePoint_toGroupPoint_injective :
-    Function.Injective (AffinePoint.toGroupPoint (E := E)) := by
-  intro P Q same
-  have underlying := congrArg GroupPoint.toMathlib same
-  change WeierstrassCurve.Affine.Point.some P.x P.y P.nonsingular =
-    WeierstrassCurve.Affine.Point.some Q.x Q.y Q.nonsingular at underlying
-  have coordinates := WeierstrassCurve.Affine.Point.some.inj underlying
-  exact AffinePoint.ext_coordinates P Q coordinates.1 coordinates.2
 
 /-- The original coefficient cannot merge distinct finite affine points. -/
 lemma encodedWords_point_injective (coefficient : (ZMod p)ˣ) :
@@ -79,7 +69,7 @@ lemma preparedBank_eq_iff_group (coefficient : (ZMod p)ˣ) (Reference : Register
     exact ⟨congrArg AffinePoint.toGroupPoint points,
       congrArg (fun bank : Recovery.Point.Instrument.FiberBank p.size Reference => bank.2.2) same⟩
   · rintro ⟨groupSame, referenceSame⟩
-    have points : P = Q := affinePoint_toGroupPoint_injective groupSame
+    have points : P = Q := AffinePoint.toGroupPoint_injective groupSame
     cases points
     cases referenceSame
     rfl

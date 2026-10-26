@@ -101,11 +101,11 @@ lemma fixed_hasPair_ge {N : Nat} (model : GoodKeyModel N)
   exact born
 
 /-- A feasible pair in the complete fixed batch yields a declared factor under the original key. -/
-lemma batchValue_accepts_of_feasiblePair {N : Nat} (model : GoodKeyModel N)
+lemma batchValue_accepts_of_feasiblePair {N sampleCount : Nat} (model : GoodKeyModel N)
     (sample : Fin (2 ^ residueSamplingBits N))
     (orderSufficient : ShortDLP.oracleFiberSpan (registerParameters N)
       (RSA.shortLogSecret model.pair.p model.pair.q) ≤ orderOf (preparedResidue sample).unit)
-    (inputs : List.Vector (PreparedBatchSample N) 16)
+    (inputs : List.Vector (PreparedBatchSample N) sampleCount)
     (feasible : PMF.HasPair (FixedPreparedFeasibleNarrowGoodPair N
       (RSA.shortLogSecret model.pair.p model.pair.q) sample) inputs.toList) :
     BatchRecovery.batchValue N (registerParameters N).m (registerParameters N).ell inputs ∈

@@ -296,6 +296,13 @@ private def selectForCircuitAux {source : ExecutionModel} {allowAllocation : Boo
       exact ⟨Circuit.embed placement inner.code, inner.paths,
         fun unsupported => False.elim unsupported,
         inner.eventCount, inner.events, fun _ => HEq.rfl⟩
+  | ownedLayoutView view body bodyIH =>
+      intro gates oracles services selected
+      cases selected
+      let inner := bodyIH rfl
+      exact ⟨Circuit.ownedLayoutView view inner.code, inner.paths,
+        fun unsupported => False.elim unsupported,
+        inner.eventCount, inner.events, fun _ => HEq.rfl⟩
   | parallelClassical join separate first second firstIH secondIH =>
       intro gates oracles services selected
       cases selected
@@ -823,6 +830,21 @@ private lemma selectForCircuitAux_execute {source : ExecutionModel} {allowAlloca
             ⟨environment.quantum, environment.classical⟩ _ state)
         (selectForCircuitAux body rfl).paths
         (fun {_} _ original => bodyIH rfl environment _ original) state
+  | ownedLayoutView view body bodyIH =>
+      intro gates oracles services selected environment Reference H _ state
+      cases selected
+      have inner := bodyIH rfl environment Reference (view.split state)
+      change (selectForCircuitAux body rfl).code.execute
+        ⟨environment.quantum, environment.classical⟩ Reference (view.split state) =
+          (body.execute environment Reference (view.split state)).mapHistory
+            (fun record => (record.1, (record.2.1,
+              (selectForCircuitAux body rfl).paths record.2.2))) at inner
+      change view.join ((selectForCircuitAux body rfl).code.execute
+        ⟨environment.quantum, environment.classical⟩ Reference (view.split state)) =
+          (view.join (body.execute environment Reference (view.split state))).mapHistory
+            (fun record => (record.1, (record.2.1,
+              (selectForCircuitAux body rfl).paths record.2.2)))
+      rw [inner, view.join_mapHistory]
   | parallelClassical join separate first second firstIH secondIH =>
       intro gates oracles services selected
       cases selected

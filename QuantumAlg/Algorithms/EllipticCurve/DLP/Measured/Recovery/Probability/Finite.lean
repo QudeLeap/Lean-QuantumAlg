@@ -14,6 +14,7 @@ import all
   QuantumAlg.Components.Classical.EllipticCurve.CandidateCheck.Native.Sampling.Failure.Boundary
 import all QuantumAlg.Components.Classical.EllipticCurve.CandidateCheck.Native.Sampling.First.Loop
 import all QuantumAlg.Core.Algorithm.AlgorithmRun.Effect
+import all QuantumAlg.Util.PMF.TwoOutput
 import all QuantumAlg.Core.Execution.Input.Oracle.Empty
 import all QuantumAlg.Core.Execution.Classical.Composition.Range.Prefix
 
@@ -159,22 +160,6 @@ private lemma four_stage_support {model : ExecutionModel}
       storeSupported (packing.execute environment Reference inputState) predicate)
   dsimp only [State.mapHistory]
   exact ExecutionState.executionState_mapClassical_congr current (by funext record; rfl)
-
-
-private lemma two_output_mass {Value : Type} [Finite Value]
-    (distribution : PMF Value) (left right : Value) (distinct : left ≠ right)
-    (zero : ∀ value, value ≠ left → value ≠ right → distribution value = 0) :
-    distribution left + distribution right = 1 := by
-  let := Fintype.ofFinite Value
-  have restricted : (∑ value ∈ ({left, right} : Finset Value), distribution value) =
-      ∑ value, distribution value := by
-    apply Finset.sum_subset (Finset.subset_univ _)
-    intro value _ excluded
-    simp only [Finset.mem_insert, Finset.mem_singleton, not_or] at excluded
-    exact zero value excluded.1 excluded.2
-  have total : (∑ value ∈ ({left, right} : Finset Value), distribution value) = 1 :=
-    restricted.trans (by simpa only [tsum_fintype] using distribution.tsum_coe)
-  simpa [distinct] using total
 
 variable {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
   (fieldTail : Nat) (odd : Odd p) (problem : KnownOrderProblem E.GroupPoint)
@@ -509,7 +494,8 @@ lemma actual_run_secret_probability_ge
   let distribution := actual.outputDistribution environment supplied
   let wanted := CShape.wordOfNat (orderWidth problem) input.secret.val
   have total : distribution .optionNone + distribution (.optionSome wanted) = 1 := by
-    apply two_output_mass distribution .optionNone (.optionSome wanted) (by intro same; cases same)
+    apply QuantumAlg.PMF.two_output_mass distribution .optionNone (.optionSome wanted)
+      (by intro same; cases same)
     intro value absent different
     cases value with
     | optionNone => exact False.elim (absent rfl)

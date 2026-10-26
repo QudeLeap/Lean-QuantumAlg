@@ -25,10 +25,12 @@ open ClassicalRoutines
 
 noncomputable section
 
+variable {additionalMembers : Nat}
+
 variable {kind : ProblemKind} {root topCtx inner : RuntimeCtx kind} {N : Nat}
 
 /-- Fresh shared destinations avoid every input transported from the persistent top scope. -/
-private lemma setup_avoids_topInput (refs : Refs root topCtx inner N)
+private lemma setup_avoids_topInput (refs : Refs root topCtx inner N additionalMembers)
     (separation : Separation refs) {shape : CShape} (other : CInputRef topCtx shape)
     (cell : LatticeCandidateModularSetup.MutableCell) :
     LatticeCandidateModularSetup.mutableKey (initializationRefs refs).setup cell ∉
@@ -47,7 +49,7 @@ private lemma setup_avoids_topInput (refs : Refs root topCtx inner N)
     other (LatticeCandidateSharedWorkspaceLayout.setupIndex N cell)
 
 /-- Every top-scope input avoids both actual stages of shared initialization. -/
-lemma initializationCallerFrame_of_topInput (refs : Refs root topCtx inner N)
+lemma initializationCallerFrame_of_topInput (refs : Refs root topCtx inner N additionalMembers)
     (separation : Separation refs) {shape : CShape} (other : CInputRef topCtx shape) :
     LatticeSharedQuadraticInitialization.CallerFrameAvoids (initializationRefs refs)
       (refs.pairTransport.liftInput other) := by
@@ -61,7 +63,7 @@ lemma initializationCallerFrame_of_topInput (refs : Refs root topCtx inner N)
     quadraticAvoids .modulus, quadraticAvoids .one, quadraticAvoids .zero⟩
 
 /-- Every original caller input survives the shared initialization prefix. -/
-lemma initializationCallerFrame_of_rootInput (refs : Refs root topCtx inner N)
+lemma initializationCallerFrame_of_rootInput (refs : Refs root topCtx inner N additionalMembers)
     (separation : Separation refs) {shape : CShape} (other : CInputRef root shape) :
     LatticeSharedQuadraticInitialization.CallerFrameAvoids (initializationRefs refs)
       ((refs.topTransport.compose refs.pairTransport).liftInput other) := by

@@ -60,8 +60,8 @@ lemma accepts_some {N factor : Nat} (model : GoodKeyModel N) :
   simp [accepts]
 
 /-- Every populated full recovery value is a declared factor of the original key model. -/
-lemma batchValue_some_declared {N factor : Nat} (model : GoodKeyModel N)
-    {inputs : List.Vector (PreparedBatchSample N) 16}
+lemma batchValue_some_declared {N factor sampleCount : Nat} (model : GoodKeyModel N)
+    {inputs : List.Vector (PreparedBatchSample N) sampleCount}
     (result : BatchRecovery.batchValue N (registerParameters N).m
       (registerParameters N).ell inputs = some factor) :
     factor = model.semiprime.leftFactor ∨ factor = model.semiprime.rightFactor := by

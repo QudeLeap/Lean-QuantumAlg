@@ -29,32 +29,6 @@ noncomputable section
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
-namespace ExecutionState
-
-/-- A mapped block is positive exactly when one of its actual input blocks is positive. -/
-lemma mapClassical_block_mass_pos_iff {C D : Type} [Fintype C] [Fintype D]
-    [DecidableEq D] {R : Register}
-    (state : ExecutionState C R) (update : C → D) (value : D) :
-    0 < ((state.mapClassical update).block value).mass ↔
-      ∃ original, update original = value ∧ 0 < (state.block original).mass := by
-  rw [mapClassical_block_mass]
-  have nonnegative : ∀ original ∈ (Finset.univ : Finset C),
-      0 ≤ if update original = value then (state.block original).mass else 0 := by
-    intro original _
-    split
-    · exact (state.block original).mass_nonneg
-    · exact le_rfl
-  rw [Finset.sum_pos_iff_of_nonneg nonnegative]
-  constructor
-  · rintro ⟨original, _member, positive⟩
-    by_cases same : update original = value
-    · exact ⟨original, same, by simpa only [same, if_true] using positive⟩
-    · simp only [same, if_false, lt_self_iff_false] at positive
-  · rintro ⟨original, same, positive⟩
-    exact ⟨original, Finset.mem_univ _, by simpa only [same, if_true] using positive⟩
-
-end ExecutionState
-
 namespace Execution
 
 /-- Recording a deterministic unit path keeps the exact positive classical

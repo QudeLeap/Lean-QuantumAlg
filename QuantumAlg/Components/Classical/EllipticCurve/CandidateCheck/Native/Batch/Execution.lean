@@ -226,7 +226,10 @@ lemma recoveryTail_actualRecord (curve : CurveSpec width) (modulus : ModulusSpec
         Reference state := by
   unfold recoveryTailComposedState
   exact (recoveryTail_execute curve modulus samples base target Reference state).trans
-    (congrArg (fun current =>
+    (congrArg (fun (current :
+        State (persistentCtx ctx width scalarWidth) Reference
+          (model.HiddenState × (History ×
+            (recoveryBatch curve modulus samples base target).Path))) =>
       (packBatchResultState ctx width scalarWidth Reference current).mapHistory
         (fun history => (history.1, (history.2.1.1, (history.2.1.2, history.2.2)))))
       ((Classical.choose_spec

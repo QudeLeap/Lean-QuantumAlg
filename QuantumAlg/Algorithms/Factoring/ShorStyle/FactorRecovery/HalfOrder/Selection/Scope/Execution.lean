@@ -7,7 +7,7 @@ Authors: QudeLeap Team
 module
 
 import all QuantumAlg.Algorithms.Factoring.ShorStyle.FactorRecovery.HalfOrder.Selection.Scope.BodyExecution
-import all QuantumAlg.Core.Execution.Classical.Workspace
+import all QuantumAlg.Core.Execution.Classical.Workspace.Record
 
 /-!
 # Complete execution through the six actual half-factor workspace scopes
@@ -30,7 +30,6 @@ variable {model : ExecutionModel}
   {environment : model.Environment} [BitWord.Selected model] {ctx : RuntimeCtx model.kind}
   {N : Nat}
 
--- Bound only elaboration of these concrete nested path dictionaries, not execution resources.
 private def part5 (halfPower : CInputRef ctx (.unsignedWord (modulusBits N)))
     (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N)))) :
     Circuit model (upperContext ctx N) (upperContext ctx N) :=
@@ -42,15 +41,11 @@ private def update5 (halfPower : CInputRef ctx (.unsignedWord (modulusBits N)))
     (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
     (store : Store (upperContext ctx N)) :
     Store (upperContext ctx N) × (body (model := model) halfPower output).Path :=
-  let selected := (bodyStep (model := model) halfPower output)
-    (store.pushWorkspace (upperContext ctx N).canonicalFreshKey
-      (.unsignedWord (modulusBits N)) (upperContext ctx N).canonicalFreshKey_fresh)
-  (Store.popWorkspace (upperContext ctx N).canonicalFreshKey
+  Circuit.workspaceStoreRecord (upperContext ctx N).canonicalFreshKey
     (.unsignedWord (modulusBits N)) (upperContext ctx N).canonicalFreshKey_fresh
-    selected.1, selected.2)
+    (body (model := model) halfPower output)
+    (bodyStep (model := model) halfPower output) store
 
-set_option maxHeartbeats 1000000 in
--- Normalizing the actual nested workspace path dictionaries exceeds the default elaboration limit.
 private lemma equation5 (halfPower : CInputRef ctx (.unsignedWord (modulusBits N)))
     (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
     (reference : Register) {history : Type} [Fintype history]
@@ -60,15 +55,12 @@ private lemma equation5 (halfPower : CInputRef ctx (.unsignedWord (modulusBits N
         (fun entry =>
       ((update5 (model := model) halfPower output entry.1).1, (entry.2.1, (entry.2.2, (update5
           (model := model) halfPower output entry.1).2)))) := by
-  refine (Circuit.execute_workspace_mapClassical
-    (environment := environment) (upperContext ctx N).canonicalFreshKey
+  exact Circuit.execute_workspaceStoreRecord environment
+    (upperContext ctx N).canonicalFreshKey
     (.unsignedWord (modulusBits N)) (upperContext ctx N).canonicalFreshKey_fresh
     (body (model := model) halfPower output)
-    (fun entry =>
-      let actual := bodyStep (model := model) halfPower output entry.1
-      ((actual.1, entry.2), actual.2))
-    (body_execute (model := model) halfPower output) reference initial).trans ?_
-  exact ExecutionState.executionState_mapClassical_congr _ rfl
+    (bodyStep (model := model) halfPower output)
+    (body_execute (model := model) halfPower output) reference initial
 
 private def part4 (halfPower : CInputRef ctx (.unsignedWord (modulusBits N)))
     (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N)))) :
@@ -80,14 +72,11 @@ private def update4 (halfPower : CInputRef ctx (.unsignedWord (modulusBits N)))
     (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
     (store : Store (lowerContext ctx N)) :
     Store (lowerContext ctx N) × (body (model := model) halfPower output).Path :=
-  let selected := (update5 (model := model) halfPower output)
-    (store.pushWorkspace (lowerContext ctx N).canonicalFreshKey
-      .bit (lowerContext ctx N).canonicalFreshKey_fresh)
-  (Store.popWorkspace (lowerContext ctx N).canonicalFreshKey
-    .bit (lowerContext ctx N).canonicalFreshKey_fresh selected.1, selected.2)
+  Circuit.workspaceStoreRecord (lowerContext ctx N).canonicalFreshKey
+    .bit (lowerContext ctx N).canonicalFreshKey_fresh
+    (part5 (model := model) halfPower output)
+    (update5 (model := model) halfPower output) store
 
-set_option maxHeartbeats 1000000 in
--- Normalizing the actual nested workspace path dictionaries exceeds the default elaboration limit.
 private lemma equation4 (halfPower : CInputRef ctx (.unsignedWord (modulusBits N)))
     (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
     (reference : Register) {history : Type} [Fintype history]
@@ -97,15 +86,12 @@ private lemma equation4 (halfPower : CInputRef ctx (.unsignedWord (modulusBits N
         (fun entry =>
       ((update4 (model := model) halfPower output entry.1).1, (entry.2.1, (entry.2.2, (update4
           (model := model) halfPower output entry.1).2)))) := by
-  refine (Circuit.execute_workspace_mapClassical
-    (environment := environment) (lowerContext ctx N).canonicalFreshKey
+  exact Circuit.execute_workspaceStoreRecord environment
+    (lowerContext ctx N).canonicalFreshKey
     .bit (lowerContext ctx N).canonicalFreshKey_fresh
     (part5 (model := model) halfPower output)
-    (fun entry =>
-      let actual := update5 (model := model) halfPower output entry.1
-      ((actual.1, entry.2), actual.2))
-    (equation5 (model := model) halfPower output) reference initial).trans ?_
-  exact ExecutionState.executionState_mapClassical_congr _ rfl
+    (update5 (model := model) halfPower output)
+    (equation5 (model := model) halfPower output) reference initial
 
 private def part3 (halfPower : CInputRef ctx (.unsignedWord (modulusBits N)))
     (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N)))) :
@@ -117,14 +103,11 @@ private def update3 (halfPower : CInputRef ctx (.unsignedWord (modulusBits N)))
     (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
     (store : Store (modulusContext ctx N)) :
     Store (modulusContext ctx N) × (body (model := model) halfPower output).Path :=
-  let selected := (update4 (model := model) halfPower output)
-    (store.pushWorkspace (modulusContext ctx N).canonicalFreshKey
-      .bit (modulusContext ctx N).canonicalFreshKey_fresh)
-  (Store.popWorkspace (modulusContext ctx N).canonicalFreshKey
-    .bit (modulusContext ctx N).canonicalFreshKey_fresh selected.1, selected.2)
+  Circuit.workspaceStoreRecord (modulusContext ctx N).canonicalFreshKey
+    .bit (modulusContext ctx N).canonicalFreshKey_fresh
+    (part4 (model := model) halfPower output)
+    (update4 (model := model) halfPower output) store
 
-set_option maxHeartbeats 1000000 in
--- Normalizing the actual nested workspace path dictionaries exceeds the default elaboration limit.
 private lemma equation3 (halfPower : CInputRef ctx (.unsignedWord (modulusBits N)))
     (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
     (reference : Register) {history : Type} [Fintype history]
@@ -134,15 +117,12 @@ private lemma equation3 (halfPower : CInputRef ctx (.unsignedWord (modulusBits N
         (fun entry =>
       ((update3 (model := model) halfPower output entry.1).1, (entry.2.1, (entry.2.2, (update3
           (model := model) halfPower output entry.1).2)))) := by
-  refine (Circuit.execute_workspace_mapClassical
-    (environment := environment) (modulusContext ctx N).canonicalFreshKey
+  exact Circuit.execute_workspaceStoreRecord environment
+    (modulusContext ctx N).canonicalFreshKey
     .bit (modulusContext ctx N).canonicalFreshKey_fresh
     (part4 (model := model) halfPower output)
-    (fun entry =>
-      let actual := update4 (model := model) halfPower output entry.1
-      ((actual.1, entry.2), actual.2))
-    (equation4 (model := model) halfPower output) reference initial).trans ?_
-  exact ExecutionState.executionState_mapClassical_congr _ rfl
+    (update4 (model := model) halfPower output)
+    (equation4 (model := model) halfPower output) reference initial
 
 private def part2 (halfPower : CInputRef ctx (.unsignedWord (modulusBits N)))
     (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N)))) :
@@ -155,15 +135,11 @@ private def update2 (halfPower : CInputRef ctx (.unsignedWord (modulusBits N)))
     (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
     (store : Store (oneContext ctx N)) :
     Store (oneContext ctx N) × (body (model := model) halfPower output).Path :=
-  let selected := (update3 (model := model) halfPower output)
-    (store.pushWorkspace (oneContext ctx N).canonicalFreshKey
-      (.unsignedWord (modulusBits N + 1)) (oneContext ctx N).canonicalFreshKey_fresh)
-  (Store.popWorkspace (oneContext ctx N).canonicalFreshKey
+  Circuit.workspaceStoreRecord (oneContext ctx N).canonicalFreshKey
     (.unsignedWord (modulusBits N + 1)) (oneContext ctx N).canonicalFreshKey_fresh
-    selected.1, selected.2)
+    (part3 (model := model) halfPower output)
+    (update3 (model := model) halfPower output) store
 
-set_option maxHeartbeats 1000000 in
--- Normalizing the actual nested workspace path dictionaries exceeds the default elaboration limit.
 private lemma equation2 (halfPower : CInputRef ctx (.unsignedWord (modulusBits N)))
     (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
     (reference : Register) {history : Type} [Fintype history]
@@ -173,15 +149,12 @@ private lemma equation2 (halfPower : CInputRef ctx (.unsignedWord (modulusBits N
         (fun entry =>
       ((update2 (model := model) halfPower output entry.1).1, (entry.2.1, (entry.2.2, (update2
           (model := model) halfPower output entry.1).2)))) := by
-  refine (Circuit.execute_workspace_mapClassical
-    (environment := environment) (oneContext ctx N).canonicalFreshKey
+  exact Circuit.execute_workspaceStoreRecord environment
+    (oneContext ctx N).canonicalFreshKey
     (.unsignedWord (modulusBits N + 1)) (oneContext ctx N).canonicalFreshKey_fresh
     (part3 (model := model) halfPower output)
-    (fun entry =>
-      let actual := update3 (model := model) halfPower output entry.1
-      ((actual.1, entry.2), actual.2))
-    (equation3 (model := model) halfPower output) reference initial).trans ?_
-  exact ExecutionState.executionState_mapClassical_congr _ rfl
+    (update3 (model := model) halfPower output)
+    (equation3 (model := model) halfPower output) reference initial
 
 private def part1 (halfPower : CInputRef ctx (.unsignedWord (modulusBits N)))
     (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N)))) :
@@ -194,15 +167,11 @@ private def update1 (halfPower : CInputRef ctx (.unsignedWord (modulusBits N)))
     (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
     (store : Store (candidateContext ctx N)) :
     Store (candidateContext ctx N) × (body (model := model) halfPower output).Path :=
-  let selected := (update2 (model := model) halfPower output)
-    (store.pushWorkspace (candidateContext ctx N).canonicalFreshKey
-      (.unsignedWord (modulusBits N + 1)) (candidateContext ctx N).canonicalFreshKey_fresh)
-  (Store.popWorkspace (candidateContext ctx N).canonicalFreshKey
+  Circuit.workspaceStoreRecord (candidateContext ctx N).canonicalFreshKey
     (.unsignedWord (modulusBits N + 1)) (candidateContext ctx N).canonicalFreshKey_fresh
-    selected.1, selected.2)
+    (part2 (model := model) halfPower output)
+    (update2 (model := model) halfPower output) store
 
-set_option maxHeartbeats 1000000 in
--- Normalizing the actual nested workspace path dictionaries exceeds the default elaboration limit.
 private lemma equation1 (halfPower : CInputRef ctx (.unsignedWord (modulusBits N)))
     (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
     (reference : Register) {history : Type} [Fintype history]
@@ -212,15 +181,12 @@ private lemma equation1 (halfPower : CInputRef ctx (.unsignedWord (modulusBits N
         (fun entry =>
       ((update1 (model := model) halfPower output entry.1).1, (entry.2.1, (entry.2.2, (update1
           (model := model) halfPower output entry.1).2)))) := by
-  refine (Circuit.execute_workspace_mapClassical
-    (environment := environment) (candidateContext ctx N).canonicalFreshKey
+  exact Circuit.execute_workspaceStoreRecord environment
+    (candidateContext ctx N).canonicalFreshKey
     (.unsignedWord (modulusBits N + 1)) (candidateContext ctx N).canonicalFreshKey_fresh
     (part2 (model := model) halfPower output)
-    (fun entry =>
-      let actual := update2 (model := model) halfPower output entry.1
-      ((actual.1, entry.2), actual.2))
-    (equation2 (model := model) halfPower output) reference initial).trans ?_
-  exact ExecutionState.executionState_mapClassical_congr _ rfl
+    (update2 (model := model) halfPower output)
+    (equation2 (model := model) halfPower output) reference initial
 
 private def part0 (halfPower : CInputRef ctx (.unsignedWord (modulusBits N)))
     (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N)))) :
@@ -233,14 +199,11 @@ private def update0 (halfPower : CInputRef ctx (.unsignedWord (modulusBits N)))
     (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
     (store : Store ctx) :
     Store ctx × (body (model := model) halfPower output).Path :=
-  let selected := (update1 (model := model) halfPower output)
-    (store.pushWorkspace ctx.canonicalFreshKey
-      (.unsignedWord (modulusBits N + 1)) ctx.canonicalFreshKey_fresh)
-  (Store.popWorkspace ctx.canonicalFreshKey
-    (.unsignedWord (modulusBits N + 1)) ctx.canonicalFreshKey_fresh selected.1, selected.2)
+  Circuit.workspaceStoreRecord ctx.canonicalFreshKey
+    (.unsignedWord (modulusBits N + 1)) ctx.canonicalFreshKey_fresh
+    (part1 (model := model) halfPower output)
+    (update1 (model := model) halfPower output) store
 
-set_option maxHeartbeats 1000000 in
--- Normalizing the actual nested workspace path dictionaries exceeds the default elaboration limit.
 private lemma equation0 (halfPower : CInputRef ctx (.unsignedWord (modulusBits N)))
     (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
     (reference : Register) {history : Type} [Fintype history]
@@ -250,14 +213,11 @@ private lemma equation0 (halfPower : CInputRef ctx (.unsignedWord (modulusBits N
         (fun entry =>
       ((update0 (model := model) halfPower output entry.1).1, (entry.2.1, (entry.2.2, (update0
           (model := model) halfPower output entry.1).2)))) := by
-  refine (Circuit.execute_workspace_mapClassical (environment := environment) ctx.canonicalFreshKey
-    (.unsignedWord (modulusBits N + 1)) ctx.canonicalFreshKey_fresh
+  exact Circuit.execute_workspaceStoreRecord environment
+    ctx.canonicalFreshKey (.unsignedWord (modulusBits N + 1)) ctx.canonicalFreshKey_fresh
     (part1 (model := model) halfPower output)
-    (fun entry =>
-      let actual := update1 (model := model) halfPower output entry.1
-      ((actual.1, entry.2), actual.2))
-    (equation1 (model := model) halfPower output) reference initial).trans ?_
-  exact ExecutionState.executionState_mapClassical_congr _ rfl
+    (update1 (model := model) halfPower output)
+    (equation1 (model := model) halfPower output) reference initial
 
 set_option maxHeartbeats 1000000 in
 -- Normalizing the actual nested workspace path dictionaries exceeds the default elaboration limit.

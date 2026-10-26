@@ -182,6 +182,29 @@ lemma selectedIdealOutput_sum_lower (problem : KnownOrderProblem E.GroupPoint)
         simp only [norm_mul, mul_pow, ← Finset.mul_sum, normalizedReference_square_sum, mul_one]
   exact (selectedFiberSum_lower problem seed input).trans_eq same.symm
 
+/-- The same diagonal event retains the entire original mass of a coherent raw vector. -/
+lemma idealReadoutEffect_weight_subnormalized (problem : KnownOrderProblem E.GroupPoint)
+    (seed : AffinePoint E) (event : (Fin (2 * orderWidth problem) → Bool) → Bool)
+    (Reference : Register)
+    (state : HilbertVector (((Qubits (orderWidth problem + orderWidth problem)).prod
+      (idealGroupRegister problem seed)).prod Reference)) (bounded : ‖state‖ ≤ 1) :
+    (idealReadoutEffect problem seed event Reference).weight
+        (DensityOperator.ofSubnormalizedVector state bounded) =
+      ∑ output, if idealReadoutEvent problem seed event Reference output = true then
+        ‖state output‖ ^ 2 else 0 := by
+  have sameDecision : instDecidableEqBool = Classical.decEq Bool := Subsingleton.elim _ _
+  rw [sameDecision]
+  simp only [Effect.weight, idealReadoutEffect, ZMeasurement.projector, Matrix.diagonal_mul,
+    Matrix.trace, Matrix.diag, DensityOperator.ofSubnormalizedVector_matrix,
+    ite_mul, one_mul, zero_mul]
+  rw [Complex.re_sum]
+  apply Finset.sum_congr rfl
+  intro output _
+  split_ifs
+  · simpa only [Complex.star_def, Complex.mul_conj, Complex.ofReal_re] using
+      Complex.normSq_eq_norm_sq (state output)
+  · rfl
+
 /-- The certified diagonal event has the true sum of retained squared amplitudes. -/
 lemma idealReadoutEffect_weight_pure (problem : KnownOrderProblem E.GroupPoint)
     (seed : AffinePoint E) (event : (Fin (2 * orderWidth problem) → Bool) → Bool)
@@ -191,17 +214,9 @@ lemma idealReadoutEffect_weight_pure (problem : KnownOrderProblem E.GroupPoint)
     (idealReadoutEffect problem seed event Reference).weight (DensityOperator.ofPure state) =
       ∑ output, if idealReadoutEvent problem seed event Reference output = true then
         ‖state output‖ ^ 2 else 0 := by
-  have sameDecision : instDecidableEqBool = Classical.decEq Bool := Subsingleton.elim _ _
-  rw [sameDecision]
-  simp only [Effect.weight, idealReadoutEffect, ZMeasurement.projector, Matrix.diagonal_mul,
-    Matrix.trace, Matrix.diag, DensityOperator.ofPure_matrix, ite_mul, one_mul, zero_mul]
-  rw [Complex.re_sum]
-  apply Finset.sum_congr rfl
-  intro output _
-  split_ifs
-  · simpa only [Complex.star_def, Complex.mul_conj, Complex.ofReal_re] using
-      Complex.normSq_eq_norm_sq (state output)
-  · rfl
+  simpa only [DensityOperator.ofSubnormalizedVector_of_normalized] using
+    idealReadoutEffect_weight_subnormalized problem seed event Reference state.vec
+      (by rw [state.norm_eq_one])
 
 /-- All selected coordinates belong to the true event, with no assumptions about other outputs. -/
 lemma idealReadoutEffect_selected_lower (problem : KnownOrderProblem E.GroupPoint)

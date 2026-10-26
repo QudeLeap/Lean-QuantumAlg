@@ -37,6 +37,7 @@ open Gate
 noncomputable section
 
 /-- One physical qubit with canonical identity zero. -/
+@[expose, implicit_reducible]
 public def layout : QuantumLayout 1 := (QuantumSignature.qubits 1).canonicalPlacement.layout
 
 /-- Express a mathematical one-qubit operator in the physical layout's basis. -/

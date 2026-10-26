@@ -14,6 +14,7 @@ import all QuantumAlg.Primitives.EllipticCurve.ScalarMultiplication.Measured.Cas
 import all QuantumAlg.Core.Execution.Composition.Laws
 import all QuantumAlg.Core.Execution.Store.MarginalSum
 import all Mathlib.Data.Fin.Tuple.Basic
+import all QuantumAlg.Util.Matrix.Trace.Step
 
 /-!
 # Actual old scalar cascade as a complete-Store Kraus decomposition
@@ -38,8 +39,7 @@ open QuantumAlg.EllipticCurve
 open ScalarMultiplication.MeasuredPlacement Recovery.Point
 open Recovery.Stage.PointCoordinates.StageWord.StoredRecursion
   (filter_store_matrix)
-open Recovery.Stage.PointCoordinates.StageWord.PathWord.PathDensity
-  (sum_at_condition sandwich_sum collapse_written_sum retained_sandwich)
+open QuantumAlg.MatrixTrace (collapse_written_sum retained_sandwich)
 open scoped BigOperators
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α

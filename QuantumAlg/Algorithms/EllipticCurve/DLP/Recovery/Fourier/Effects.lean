@@ -63,6 +63,20 @@ def idealGroupLabel (problem : KnownOrderProblem E.GroupPoint) (seed : AffinePoi
     (idealGroupRegister problem seed).Index :=
   ⟨idealGroupOutput problem seed branch, Finset.mem_image.mpr ⟨branch, Finset.mem_univ _, rfl⟩⟩
 
+/-- Left translation by the same supplied seed preserves exactly the original oracle fibers. -/
+lemma idealGroupLabel_eq_iff (problem : KnownOrderProblem E.GroupPoint) (seed : AffinePoint E)
+    (left right : (idealBranchRegister problem).Index) :
+    idealGroupLabel problem seed left = idealGroupLabel problem seed right ↔
+      problem.toSourceScope.oracleMultiplier left.1.val left.2.val =
+        problem.toSourceScope.oracleMultiplier right.1.val right.2.val := by
+  constructor
+  · intro same
+    have outputSame := congrArg (fun label => label.val) same
+    exact mul_left_cancel outputSame
+  · intro same
+    apply Subtype.ext
+    exact congrArg (fun value => seed.toGroupPoint * value) same
+
 /-- Pack the original exponent pair beside its full-group target and the unchanged reference. -/
 def idealOracleEmbedding (problem : KnownOrderProblem E.GroupPoint) (seed : AffinePoint E)
     (Reference : Register) :

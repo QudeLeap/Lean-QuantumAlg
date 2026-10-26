@@ -103,6 +103,7 @@ private lemma code_visited (halfPower : CInputRef ctx (.unsignedWord (modulusBit
     at present
   simp only [List.mem_cons, List.mem_append, List.not_mem_nil, or_false] at present
   simp only [List.mem_cons, List.not_mem_nil, or_false]
+  simp only [or_left_comm, or_comm, or_self, or_self_left] at present
   tauto
 
 section

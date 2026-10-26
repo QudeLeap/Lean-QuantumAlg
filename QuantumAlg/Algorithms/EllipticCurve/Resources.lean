@@ -11,7 +11,8 @@ public import QuantumAlg.Core.Algorithm.Solves
 public import QuantumAlg.Algorithms.EllipticCurve.Resources.Execution
 import all QuantumAlg.Algorithms.EllipticCurve.Resources.Execution
 import all QuantumAlg.Algorithms.EllipticCurve.DLP.Measured.Recovery.Input
-import all QuantumAlg.Algorithms.EllipticCurve.DLP.Measured.Recovery.Algorithm
+import all QuantumAlg.Algorithms.EllipticCurve.DLP.Measured.Recovery.Probability.FixedOffset
+import all QuantumAlg.Core.Algorithm.AlgorithmRun.Borrowed.NoQuantum
 public import QuantumAlg.Algorithms.EllipticCurve.Resources.Spec
 import all QuantumAlg.Algorithms.EllipticCurve.Resources.Spec
 
@@ -102,7 +103,7 @@ private lemma complete_correct (fieldTail : Nat) (sameWidth : fieldTail.succ = p
     cases member
   borrowed := by
     intro environment witness Reference supplied valid initialized
-    exact ECDLP.Measured.Recovery.ExecutionContract.Solves.run_restores_of_noBorrowedQuantum
+    exact AlgorithmRun.restoresBorrowed_of_noBorrowedQuantum
       (environment := environment)
       (algorithm E fieldTail sameWidth fits odd I points seed count).run
       (show

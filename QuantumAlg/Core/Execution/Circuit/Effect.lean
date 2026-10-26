@@ -17,6 +17,7 @@ import all QuantumAlg.Core.Execution.Composition.Effect
 import all QuantumAlg.Core.Execution.Composition.Parallel
 import all QuantumAlg.Core.Execution.Composition.Embedding
 import all QuantumAlg.Core.Execution.Interpret.Preserving
+import all QuantumAlg.Core.Execution.Context.OwnedLayoutView.Effect
 
 /-!
 # Certified observations of the actual finite circuit
@@ -109,6 +110,9 @@ def effectPullback {model : ExecutionModel} {pre post : RuntimeCtx model.kind}
   | .embed placement body =>
       embedEffectPullback placement Reference
         (effectPullback body environment (Register.prod placement.frame.register Reference)) effects
+  | .ownedLayoutView view body =>
+      view.splitEffectPullback Reference
+        (effectPullback body environment Reference (view.joinEffectPullback Reference effects))
   | .parallelClassical join separate first second =>
       parallelEffectPullback join separate Reference
         (effectPullback first
@@ -287,6 +291,10 @@ lemma effectWeight_execute {model : ExecutionModel} {pre post : RuntimeCtx model
         (effectPullback body environment _)
         (fun {_} _ original effects => bodyEquation environment _ original effects)
         state effects
+  | ownedLayoutView view body bodyEquation =>
+      change (view.join (body.execute environment Reference (view.split state))).effectWeight _ = _
+      rw [view.effectWeight_join, bodyEquation, view.effectWeight_split]
+      rfl
   | parallelClassical join separate first second firstEquation secondEquation =>
       exact parallelPreserving_effect join separate
         (fun original => interpret first

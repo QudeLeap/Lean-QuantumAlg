@@ -25,7 +25,23 @@ lemma half (negative : Fin 4 → Bool) :
       signedRawPauliSet := by
   by_cases h0 : negative 0 <;> by_cases h1 : negative 1 <;>
     by_cases h2 : negative 2 <;> by_cases h3 : negative 3 <;>
-      pauliHalfMemFinish
+      simp only [signedRawPauliSet, Set.mem_ofPred_eq]
+  · left; pauliHalfConjFinish
+  · right; right; right; right; left; pauliHalfConjFinish
+  · right; right; right; right; right; pauliHalfConjFinish
+  · left; pauliHalfConjFinish
+  · right; right; right; right; right; pauliHalfConjFinish
+  · right; left; pauliHalfConjFinish
+  · right; left; pauliHalfConjFinish
+  · right; right; right; right; left; pauliHalfConjFinish
+  · right; right; right; right; left; pauliHalfConjFinish
+  · right; left; pauliHalfConjFinish
+  · right; left; pauliHalfConjFinish
+  · right; right; right; right; right; pauliHalfConjFinish
+  · left; pauliHalfConjFinish
+  · right; right; right; right; right; pauliHalfConjFinish
+  · right; right; right; right; left; pauliHalfConjFinish
+  · left; pauliHalfConjFinish
 
 end QuantumAlg.QubitTwoDesign.PauliNormalizer.Y
 

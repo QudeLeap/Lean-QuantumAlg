@@ -21,6 +21,16 @@ import all QuantumAlg.Components.Gates.Operator
 Elementary operations are Toffoli, CNOT, and an arbitrary one-qubit unitary.
 The one-qubit coordinate counts the actual unitary token without discarding it.
 Preparation, measurement and oracle access are separate execution operations.
+
+Resource design priorities are qubit count, then Toffoli count, then quantum
+computation time, then CNOT and single-qubit counts. This is guidance rather than
+a lexicographic order or a fixed exchange rate: a small constant or logarithmic
+workspace increase may justify a substantial improvement in the later metrics.
+Classical storage and computation remain independent resource coordinates, with
+no conversion into a quantum-resource score. Measurement counts are also
+reported separately. The execution event model charges gates and quantum queries
+unit quantum duration; measurement, classical operations and fresh zero
+preparation have zero duration, while preparation and reset gates are charged.
 -/
 
 namespace QuantumAlg

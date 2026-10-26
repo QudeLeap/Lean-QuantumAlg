@@ -13,6 +13,7 @@ import all QuantumAlg.Algorithms.EllipticCurve.DLP.Measured.Recovery.Stage.Path.
 import all QuantumAlg.Algorithms.EllipticCurve.DLP.Measured.Recovery.Observation.History.Matrices
 import all QuantumAlg.Core.Execution.Circuit.ClassicalTag.Encoding
 import all QuantumAlg.Core.Execution.Circuit.History
+import all QuantumAlg.Core.Base.Tensor.Reference
 
 /-!
 # Actual stage and legal-path matrices at every original history predicate
@@ -145,7 +146,7 @@ private lemma feedbackMatrix_reference_factor (width m : Nat) (current : Fin (2 
         refine ⟨tailOperator * head, ?_⟩
         intro Reference
         simp only [feedbackMatrix, tailFactor, feedbackOneMatrix, if_pos feeds,
-          Recovery.Point.Instrument.unitary_tensor_identity]
+          unitaryOperator_prodTensor_identity]
         exact tensor_identity_mul (Local := (Context width m).register)
           (Reference := Reference) tailOperator head
       · refine ⟨tailOperator, ?_⟩
@@ -179,7 +180,7 @@ lemma stageMatrix_reference_factor {p : Nat} (E : PrimeFieldShortWeierstrass p)
   refine ⟨(reset * measured * hadamard) * feedback * point * prepared, ?_⟩
   intro Reference
   simp only [stageMatrix, readoutMatrix, preparationMatrix, pointFactor, feedbackFactor,
-    Recovery.Point.Instrument.unitary_tensor_identity]
+    unitaryOperator_prodTensor_identity]
   rw [Recovery.Point.Instrument.projector_tensor_identity
     (Local := (Context p.size m).register) (Reference := Reference)
     (fun basis => basis (Recovery.Layout.position p.size m 0)) outcome]
